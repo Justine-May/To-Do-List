@@ -82,3 +82,9 @@ h1 {
     padding: 0 5px;
     margin-left: 10px;
 }
+.task-checkbox {
+    /* Add a little space after the checkbox */
+    margin-right: 10px; 
+    /* You can style the size if needed */
+    transform: scale(1.2); 
+}

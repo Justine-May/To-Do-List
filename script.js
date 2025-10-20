@@ -25,7 +25,8 @@ function addTask() {
     // Create new list item (li)
     const listItem = document.createElement('li');
     listItem.innerHTML = `
-        <span>${taskText}</span>
+        <input type="checkbox" class="task-checkbox">
+        <span class="task-text">${taskText}</span>
         <button class="delete-btn">🗑️</button>
     `;
 
