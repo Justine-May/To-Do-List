@@ -3,22 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FocusTask To-Do List</title>
-    <link rel="stylesheet" href="style.css"> 
+    <title>Merged To-Do List App (with Auth)</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body class="antialiased flex min-h-screen">
+<body>
 
-    <div id="app-container">
+    <div class="app-container">
+        
+        <div class="main-list">
+            
+            <div class="auth-section">
+                <div id="sign-in-status">Signed out. Data is local.</div>
+                
+                <div id="g_id_onload"
+                 data-client_id="603242997411-l4br2gg0fup8pl8uks2a5gpvnfmj1ml3.apps.googleusercontent.com" 
+                 data-callback="handleCredentialResponse"
+                 data-auto_prompt="false">
+                </div>
+                <div class="g_id_signin" 
+                     data-type="standard"
+                     data-size="large"
+                     data-theme="outline"
+                     data-text="sign_in_with"
+                     data-shape="rectangular"
+                     data-logo_alignment="left">
+                </div>
+            </div>
 
-        <h1>My To-Do List</h1>
+            <h1>My Unified Task List 📝</h1>
+            
+            <div class="list-controls">
+                <select id="list-filter">
+                    </select>
+                <button id="add-list-btn">+ New List</button>
+            </div>
 
-        <div class="input-section">
-            <input type="text" id="taskInput" placeholder="Add a new task...">
-            <button id="addTaskButton">Add Task</button>
+            <div class="input-group">
+                <input type="text" id="new-task-title" placeholder="Add a new task..." autofocus>
+                <button id="add-task-btn">Add</button>
+            </div>
+
+            <ul id="task-list">
+                </ul>
         </div>
 
-        <ul id="todoList">
-        </ul>
+        <div class="task-details-panel hidden" id="task-details-panel">
+            <h2 id="detail-title">Task Details</h2>
+            <button class="close-btn" id="close-details-btn">×</button>
+
+            <div class="detail-section"><label for="detail-text">Task Title</label><input type="text" id="detail-text"></div>
+            <div class="detail-section"><label for="detail-due-date">Due Date</label><input type="date" id="detail-due-date"></div>
+            <div class="detail-section"><label for="detail-list">List Category</label><select id="detail-list"></select></div>
+
+            <div class="detail-section">
+                <h3>Subtasks</h3>
+                <div class="input-group subtask-input">
+                    <input type="text" id="new-subtask-text" placeholder="Add new subtask">
+                    <button id="add-subtask-btn">Add</button>
+                </div>
+                <ul id="subtask-list"></ul>
+            </div>
+
+            <div class="actions-group">
+                <button id="delete-task-btn" class="delete-btn">Delete Task</button>
+                <button id="save-changes-btn" class="save-btn">Save changes</button>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
