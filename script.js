@@ -1,13 +1,16 @@
-// Simple interactivity: Select task to highlight
-const taskItems = document.querySelectorAll('.task-item');
-taskItems.forEach(item => {
-    item.addEventListener('click', () => {
-        taskItems.forEach(i => i.classList.remove('selected'));
-        item.classList.add('selected');
-    });
+// 1. Get DOM elements
+const taskInput = document.getElementById('taskInput');
+const addTaskButton = document.getElementById('addTaskButton');
+const todoList = document.getElementById('todoList');
+
+// 2. Event Listener for adding a task
+addTaskButton.addEventListener('click', addTask);
+taskInput.addEventListener('keypress', function(e) {
+    // Allows adding a task by pressing the 'Enter' key
+    if (e.key === 'Enter') {
+        addTask();
+    }
 });
-<<<<<<< HEAD
-=======
 
 // 3. Function to add a new task
 function addTask() {
@@ -45,4 +48,3 @@ function addTask() {
     taskInput.value = '';
     taskInput.focus(); // Keep focus on input for quick additions
 }
->>>>>>> parent of b5bc49b (adding a checkbox functionality)
