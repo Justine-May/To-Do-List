@@ -136,6 +136,7 @@ body {
     font-weight: bold;
     margin-bottom: 20px;
 }
+<<<<<<< HEAD
 .description {
     margin-bottom: 20px;
 }
@@ -201,3 +202,5 @@ body {
     max-height: 400px;
     overflow-y: auto;
 }
+=======
+>>>>>>> parent of b5bc49b (adding a checkbox functionality)
