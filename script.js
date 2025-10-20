@@ -49,3 +49,34 @@ function addTask() {
     taskInput.value = '';
     taskInput.focus(); // Keep focus on input for quick additions
 }
+// Get the new sort button
+const sortTasksButton = document.getElementById('sortTasksButton'); 
+
+// Add the event listener
+sortTasksButton.addEventListener('click', sortTasks);
+
+// Function to sort tasks
+function sortTasks() {
+    const list = document.getElementById('todoList');
+    // Get all list items (tasks)
+    const items = Array.from(list.children); 
+
+    // 1. Separate tasks into two groups
+    const pendingTasks = items.filter(item => !item.classList.contains('done'));
+    const completedTasks = items.filter(item => item.classList.contains('done'));
+
+    // 2. Clear the current list order
+    list.innerHTML = ''; 
+
+    // 3. Re-append the lists, placing Pending tasks first
+    
+    // Append all pending tasks
+    pendingTasks.forEach(task => {
+        list.appendChild(task);
+    });
+
+    // Append all completed tasks (they will appear at the bottom)
+    completedTasks.forEach(task => {
+        list.appendChild(task);
+    });
+}
