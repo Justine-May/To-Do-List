@@ -1,0 +1,559 @@
+/* Basic Reset and Global Styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+    margin: 0;
+    padding: 0;
+    background-color: #f5f6f8;
+    color: #333;
+    display: flex;
+}
+
+.app-container {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* -------------------- Sidebar Styling -------------------- */
+.sidebar {
+    width: 250px;
+    background-color: #fff;
+    padding: 20px 15px;
+    border-right: 1px solid #eee;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+}
+
+.menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.menu-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.menu-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #333;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    background-color: #f0f0f0;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 20px;
+}
+
+.search-box i {
+    margin-right: 8px;
+    color: #888;
+}
+
+.search-box input {
+    border: none;
+    background: transparent;
+    flex-grow: 1;
+    outline: none;
+    font-size: 14px;
+}
+
+.section-title {
+    font-weight: 600;
+    color: #888;
+    margin: 15px 0 5px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.menu-sections ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.task-item, .list-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    margin-bottom: 2px;
+}
+
+.task-item:hover, .list-item:hover {
+    background-color: #f0f0f0;
+}
+
+.task-item i {
+    margin-right: 10px;
+    width: 16px;
+    text-align: center;
+}
+
+.task-item.active {
+    background-color: #e6f7ff; /* Light blue background for active */
+    font-weight: 600;
+    color: #1890ff;
+}
+
+.count {
+    margin-left: auto;
+    background-color: #eee;
+    color: #666;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.color-dot.personal { background-color: #f5222d; } /* Red */
+.color-dot.work { background-color: #1890ff; } /* Blue */
+.color-dot.list1 { background-color: #ffc53d; } /* Yellow */
+
+.add-list {
+    color: #666;
+    font-style: italic;
+}
+
+/* Tags Styling */
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0 10px;
+}
+
+.tag {
+    padding: 5px 10px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.tag-1 { background-color: #e6fffb; color: #008778; border: 1px solid #b5f5ec; }
+.tag-2 { background-color: #fff1f0; color: #cf1322; border: 1px solid #ffccc7; }
+.add-tag { background: none; color: #666; border: 1px dashed #ccc; }
+
+.menu-footer {
+    margin-top: auto;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.footer-item {
+    padding: 10px;
+    cursor: pointer;
+    color: #666;
+}
+
+.footer-item i {
+    margin-right: 10px;
+}
+
+
+/* -------------------- Matrix Styling -------------------- */
+.matrix-main {
+    flex-grow: 1;
+    padding: 30px;
+}
+
+.matrix-main h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.matrix-grid {
+    display: grid;
+    /* 3 columns: V-label, Urgent, Not Urgent */
+    /* 3 rows: H-label, Important, Not Important */
+    grid-template-columns: 120px 1fr 1fr;
+    grid-template-rows: 60px 1fr 1fr;
+    gap: 15px; /* Increased gap for better spacing */
+    height: calc(100vh - 120px); 
+}
+
+/* Labels */
+.matrix-label-v {
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+    font-weight: 600;
+    color: #555;
+    font-size: 16px;
+}
+
+.matrix-label-h {
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #555;
+    font-size: 16px;
+}
+
+.matrix-label-v:nth-child(2) { 
+    grid-row: 2;
+}
+
+.matrix-label-v:nth-child(4) { 
+    grid-row: 3;
+}
+
+/* Quadrant Positioning */
+.do { grid-area: 2 / 2 / 3 / 3; }
+.schedule { grid-area: 2 / 3 / 3 / 4; }
+.delegate { grid-area: 3 / 2 / 4 / 3; }
+.delete { grid-area: 3 / 3 / 4 / 4; }
+
+/* Quadrant Styling */
+.quadrant {
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    overflow: auto; /* Allow scrolling if many tasks */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Quadrant Colors */
+.do { background-color: #e9f7ef; border: 1px solid #a8e0b6; }
+.schedule { background-color: #f7eff7; border: 1px solid #d4a9d4; }
+.delegate { background-color: #eff6fb; border: 1px solid #a7c8e7; }
+.delete { background-color: #f9f0f0; border: 1px solid #e7a7a7; }
+
+.quadrant-header {
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 15px;
+    padding: 5px 0;
+    display: flex;
+    align-items: center;
+}
+
+.quadrant-header i {
+    margin-right: 8px;
+    font-size: 20px;
+}
+
+/* Quadrant Header Specific Colors */
+.do-header { color: #52c41a; }
+.schedule-header { color: #9254de; }
+.delegate-header { color: #1890ff; }
+.delete-header { color: #f5222d; }
+
+
+/* Task List Styling */
+.task-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Task Item Styling for Matrix - adjusted padding to be larger */
+.task-list > .task-item {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 12px 15px; 
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.1s;
+    cursor: pointer; /* To indicate it's clickable for details */
+}
+
+.task-list > .task-item:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.task-list > .task-item i {
+    color: #52c41a; 
+    margin-right: 10px;
+}
+
+.task-date {
+    margin-left: auto;
+    font-size: 12px;
+    color: #888;
+    margin-right: 10px;
+}
+
+.task-list > .task-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.add-task {
+    background: none;
+    border: 1px dashed #ccc;
+    color: #666;
+    font-style: italic;
+    cursor: pointer;
+    justify-content: center;
+    padding: 10px 15px; /* Keep consistent padding */
+    border-radius: 8px;
+}
+
+.add-task i {
+    margin-right: 5px;
+    color: #666;
+}
+
+/* -------------------- Task Details Modal Styling -------------------- */
+
+.modal {
+    display: none; 
+    position: fixed;
+    z-index: 1000; 
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4); 
+    backdrop-filter: blur(3px); 
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto; 
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%; 
+    max-width: 600px; 
+    position: relative;
+}
+
+.modal-content h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #333;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* Form Styling */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #555;
+    font-size: 14px;
+}
+
+.form-group label i {
+    margin-right: 5px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box; 
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    border-color: #1890ff;
+    outline: none;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.form-row .half-width {
+    flex: 1;
+}
+
+/* Tags Input Styling */
+.selected-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.selected-tag {
+    background-color: #e6f7ff;
+    color: #1890ff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+}
+
+/* Subtask Styling */
+.subtask-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.subtask-list li {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.subtask-list input[type="text"] {
+    flex-grow: 1;
+    border: 1px solid #f0f0f0;
+    background-color: #f7f7f7;
+    margin-right: 5px;
+}
+
+.add-subtask-btn {
+    background-color: #52c41a;
+    color: white;
+    border: none;
+    padding: 8px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.add-subtask-btn:hover {
+    background-color: #389e0d;
+}
+
+/* Modal Action Buttons */
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.delete-btn {
+    background-color: #fff1f0;
+    color: #f5222d;
+    border: 1px solid #ffccc7;
+    margin-right: auto; 
+}
+
+.save-btn {
+    background-color: #1890ff;
+    color: white;
+}
+
+/* -------------------- Drag and Drop Styling -------------------- */
+
+/* Style for the element being dragged */
+.is-dragging {
+    opacity: 0.4;
+    border: 2px dashed #000;
+}
+
+/* Style for the quadrant when a task is hovered over it */
+.drag-over {
+    border: 2px dashed #1890ff; /* Highlight border */
+    background-color: rgba(24, 144, 255, 0.1); /* Slight blue background overlay */
+}
+
+/* -------------------- Task List Enhancements -------------------- */
+
+/* Style for completed tasks in the All Tasks view */
+.task-item.completed {
+    text-decoration: line-through;
+    opacity: 0.6;
+    background-color: #f0f0f0;
+}
+
+/* Style for the All Tasks list to make it clean */
+.all-list-view {
+    padding: 10px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.all-list-view .task-item {
+    /* Override background color inherited from quadrants */
+    background-color: #fff; 
+    border: 1px solid #eee;
+    margin-bottom: 8px;
+}
