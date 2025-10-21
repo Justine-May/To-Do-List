@@ -277,3 +277,23 @@ h1 {
 .save-btn:hover {
     background-color: #27ae60;
 }
+
+.auth-button {
+    padding: 8px 15px;
+    border: 1px solid var(--secondary-color);
+    background-color: transparent;
+    color: var(--secondary-color);
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+.auth-button:hover {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.hidden {
+    display: none !important;
+}

@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const listFilter = document.getElementById('list-filter');
     const addListBtn = document.getElementById('add-list-btn');
     const signInStatus = document.getElementById('sign-in-status'); // New element
-
+    const signOutBtn = document.getElementById('sign-out-btn');
+    const googleSignInDiv = document.querySelector('.g_id_signin');
     // Detail Panel elements (unchanged)
     const detailsPanel = document.getElementById('task-details-panel');
     const closeDetailsBtn = document.getElementById('close-details-btn');
@@ -30,6 +31,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const TASK_STORAGE_KEY = () => `mergedTasks_${currentUserId}`;
     const LIST_STORAGE_KEY = () => `mergedLists_${currentUserId}`;
 
+// --- Authentication UI Manager ---
+
+    /**
+     * Toggles the visibility of the Sign In/Sign Out buttons and updates status.
+     * @param {boolean} isSignedIn
+     * @param {string} userName
+     */
+    const updateAuthUI = (isSignedIn, userName = '') => {
+        if (isSignedIn) {
+            signInStatus.textContent = `Signed in as ${userName}.`;
+            // Hide Google Sign-In button and show Sign-Out button
+            googleSignInDiv.classList.add('hidden');
+            signOutBtn.classList.remove('hidden');
+        } else {
+            signInStatus.textContent = 'Signed out. Data is local.';
+            // Show Google Sign-In button and hide Sign-Out button
+            googleSignInDiv.classList.remove('hidden');
+            signOutBtn.classList.add('hidden');
+        }
+    };
+
+    // --- Logout Handler ---
+
+    /**
+     * Clears user session and reverts to local guest mode.
+     */
+    const handleSignOut = () => {
+        // 1. Google sign-out (Disables instant re-login prompt)
+        if (typeof google !== 'undefined' && google.accounts.id) {
+            google.accounts.id.disableAutoSelect();
+        }
+
+        // 2. Clear application state by reverting to guest ID
+        currentUserId = 'local_guest';
+        
+        // 3. Update UI and reload tasks (which loads the local_guest data)
+        updateAuthUI(false);
+        closeTaskDetails(); // Close the details panel if open
+        loadTasks(); 
+    };
 
     // --- Authentication Functions (Simulated) ---
 
@@ -394,6 +435,12 @@ document.addEventListener('DOMContentLoaded', () => {
     deleteTaskBtn.addEventListener('click', deleteActiveTask);
     addSubtaskBtn.addEventListener('click', addSubtask);
     newSubtaskText.addEventListener('keypress', (e) => { if (e.key === 'Enter') addSubtask(); });
+
+    // ADDED LOGIC: Sign Out Button Listener
+    signOutBtn.addEventListener('click', handleSignOut); 
+
+    // ADDED LOGIC: Initial UI setup (Hides the Sign Out button until login)
+    updateAuthUI(false);
 
     // Load initial data
     renderLists();
