@@ -29,7 +29,7 @@
                 <span class="task-count" id="today-task-count">0</span>
             </div>
             <div class="menu-item" id="all-tasks-filter-btn">
-                 <span class="icon">📋</span> All Tasks
+                <span class="icon">📋</span> All Tasks
             </div>
 
             <div class="menu-section-title">LISTS</div>
@@ -45,7 +45,6 @@
             </div>
 
             <div class="menu-footer">
-                <div class="menu-item" id="settings-link"><span class="icon">⚙️</span> Settings</div>
                 <div class="menu-item" id="sign-out-btn"><span class="icon">➡️</span> Sign out</div>
             </div>
         </div>
@@ -71,19 +70,20 @@
                 </div>
             </div>
 
-            <h1><span id="main-header">Today</span> <span class="header-count" id="task-count-display">0</span></h1>
+            <h1><span id="main-header">Kanban Board</span> <span class="header-count" id="task-count-display"></span></h1>
             
             <div class="input-group add-task-group">
                 <span class="add-task-icon">+</span>
                 <input type="text" id="new-task-title" placeholder="Add New Task" autofocus>
+                <button id="add-task-btn" class="add-btn">Add</button> 
             </div>
             
-            <ul id="task-list">
-            </ul>
+            <div id="kanban-board-container">
+                </div>
         </div>
         
         <div class="task-details-panel hidden" id="task-details-panel">
-            <h2 id="detail-title">Task: Renew driver's license</h2>
+            <h2 id="detail-title">Task: Title</h2>
             <button class="close-btn" id="close-details-btn">×</button>
 
             <div class="detail-section">

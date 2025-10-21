@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eisenhower Matrix App</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="menu-header">
+                <h2>Menu</h2>
+                <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+            </div>
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search">
+            </div>
+
+            <nav class="menu-sections">
+                <p class="section-title">TASKS</p>
+                <ul>
+                    <li class="task-item"><i class="fas fa-angles-right"></i> Upcoming <span class="count">12</span></li>
+                    <li class="task-item active"><i class="fas fa-list-ul"></i> Today <span class="count">5</span></li>
+                    <li class="task-item"><i class="fas fa-calendar-alt"></i> Calendar</li>
+                    <li class="task-item"><i class="fas fa-sticky-note"></i> Sticky Wall</li>
+                </ul>
+
+                <p class="section-title">LISTS</p>
+                <ul>
+                    <li class="list-item"><span class="color-dot personal"></span> Personal <span class="count">3</span></li>
+                    <li class="list-item"><span class="color-dot work"></span> Work <span class="count">6</span></li>
+                    <li class="list-item"><span class="color-dot list1"></span> List 1 <span class="count">3</span></li>
+                    <li class="list-item add-list"><i class="fas fa-plus"></i> Add New List</li>
+                </ul>
+
+                <p class="section-title">TAGS</p>
+                <div class="tags-container">
+                    <span class="tag tag-1">Tag 1</span>
+                    <span class="tag tag-2">Tag 2</span>
+                    <span class="tag add-tag"><i class="fas fa-plus"></i> Add Tag</span>
+                </div>
+            </nav>
+
+            <div class="menu-footer">
+                <div class="footer-item"><i class="fas fa-cog"></i> Settings</div>
+                <div class="footer-item"><i class="fas fa-sign-out-alt"></i> Sign out</div>
+            </div>
+        </aside>
+
+        <main class="matrix-main">
+            <h1>Eisenhower Matrix</h1>
+            <div class="matrix-grid">
+                <div class="matrix-label-v">Important</div>
+                <div class="matrix-label-h urgent-label">Urgent</div>
+                <div class="matrix-label-h not-urgent-label">Not Urgent</div>
+
+ <div class="quadrant important urgent do" data-quadrant="do">
+                    <div class="quadrant-header do-header">
+                        <i class="fas fa-check-circle"></i> DO
+                    </div>
+                    <ul class="task-list">
+                        <li class="task-item" data-date="May 21, 2025" data-task-id="1" draggable="true">
+                            <i class="fas fa-check"></i> Renew Car License
+                            <span class="task-date">May 21, 2025</span>
+                            <input type="checkbox">
+                        </li>
+                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                    </ul>
+                </div>
+
+                <div class="quadrant important not-urgent schedule" data-quadrant="schedule">
+                    <div class="quadrant-header schedule-header">
+                        <i class="fas fa-clock"></i> SCHEDULE
+                    </div>
+                    <ul class="task-list">
+                        <li class="task-item" data-date="May 21, 2025" data-task-id="2" draggable="true">
+                            <i class="fas fa-check"></i> Go to Bed Early
+                            <span class="task-date">May 21, 2025</span>
+                            <input type="checkbox">
+                        </li>
+                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                    </ul>
+                </div>
+...
+                <div class="quadrant not-important urgent delegate" data-quadrant="delegate">
+                    <div class="quadrant-header delegate-header">
+                        <i class="fas fa-tasks"></i> DELEGATE
+                    </div>
+                    <ul class="task-list">
+                        <li class="task-item" data-date="May 30, 2025" data-task-id="3" draggable="true">
+                            <i class="fas fa-check"></i> Schedule Pick-Up
+                            <span class="task-date">May 30, 2025</span>
+                            <input type="checkbox">
+                        </li>
+                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                    </ul>
+                </div>
+
+                <div class="quadrant not-important not-urgent delete" data-quadrant="delete">
+                    <div class="quadrant-header delete-header">
+                        <i class="fas fa-times-circle"></i> DELETE
+                    </div>
+                    <ul class="task-list">
+                        <li class="task-item" data-date="May 21, 2025" data-task-id="4" draggable="true">
+                            <i class="fas fa-check"></i> Quit Scrolling Social Media
+                            <span class="task-date">May 21, 2025</span>
+                            <input type="checkbox">
+                        </li>
+                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                    </ul>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <div id="task-details-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" title="Close">&times;</span>
+            <form id="task-form">
+                <h2>Task Details</h2>
+
+                <div class="form-group">
+                    <label for="task-title"><i class="fas fa-heading"></i> Task Title</label>
+                    <input type="text" id="task-title" name="task-title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
+                    <textarea id="task-description" name="task-description"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group half-width">
+                        <label for="task-list"><i class="fas fa-list-ul"></i> List</label>
+                        <select id="task-list" name="task-list">
+                            <option value="Personal">Personal</option>
+                            <option value="Work">Work</option>
+                            <option value="List 1">List 1</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group half-width">
+                        <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
+                        <input type="date" id="task-due-date" name="task-due-date">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="task-tags"><i class="fas fa-tags"></i> Tags</label>
+                    <input type="text" id="task-tags" name="task-tags" placeholder="Enter tags (e.g., important, urgent)">
+                    <div id="selected-tags" class="selected-tags-container">
+                        </div>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-list-check"></i> Subtasks</label>
+                    <ul id="subtask-list" class="subtask-list">
+                        <li class="new-subtask">
+                            <input type="text" placeholder="Add a new subtask">
+                            <button type="button" class="add-subtask-btn"><i class="fas fa-plus"></i></button>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" id="delete-task-btn" class="btn delete-btn"><i class="fas fa-trash"></i> Delete Task</button>
+                    <button type="submit" class="btn save-btn"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+
+                <input type="hidden" id="current-task-id" name="current-task-id">
+            </form>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

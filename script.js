@@ -5,26 +5,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainHeader = document.getElementById('main-header'); 
     
     // Sidebar elements
-    const menuSearchInput = document.getElementById('menu-search-input'); // ADD THIS
+    const menuPanel = document.querySelector('.nav-panel'); // ADDED: Required for mobile toggle
+    const menuToggleBtn = document.getElementById('menu-toggle-btn'); // ADDED: Required for mobile toggle
+    const addTaskButton = document.getElementById('add-task-btn'); // ADDED: Required for explicit button listener
+
+    const menuSearchInput = document.getElementById('menu-search-input'); 
     const upcomingFilterBtn = document.getElementById('upcoming-filter-btn');
     const todayFilterBtn = document.getElementById('today-filter-btn');
     const allTasksFilterBtn = document.getElementById('all-tasks-filter-btn');
     const listMenuItems = document.getElementById('list-menu-items');
     const addListBtn = document.getElementById('add-list-btn'); 
     const tagMenuItems = document.getElementById('tag-menu-items');
-    const addTagBtn = document.getElementById('add-tag-btn');
+    // const addTagBtn = document.getElementById('add-tag-btn'); // NOTE: This is likely not needed, as the button is created in renderTags
     const signOutBtn = document.getElementById('sign-out-btn');
 
     // Detail Panel elements
     const detailsPanel = document.getElementById('task-details-panel');
     const closeDetailsBtn = document.getElementById('close-details-btn');
     const detailText = document.getElementById('detail-text');
-    const detailDescription = document.getElementById('detail-description'); // NEW
+    const detailDescription = document.getElementById('detail-description'); 
     const detailDueDate = document.getElementById('detail-due-date');
     const detailList = document.getElementById('detail-list');
-    const detailTagsDisplay = document.getElementById('detail-tags-display'); // NEW
-    const newTagText = document.getElementById('new-tag-text'); // NEW
-    const addTagToTaskBtn = document.getElementById('add-tag-to-task-btn'); // NEW
+    const detailTagsDisplay = document.getElementById('detail-tags-display'); 
+    const newTagText = document.getElementById('new-tag-text'); 
+    const addTagToTaskBtn = document.getElementById('add-tag-to-task-btn'); 
     const subtaskList = document.getElementById('subtask-list');
     const newSubtaskText = document.getElementById('new-subtask-text');
     const deleteTaskBtn = document.getElementById('delete-task-btn');
@@ -33,15 +37,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State & Config ---
     let activeTaskId = null;
     let currentFilter = 'today';
-    let currentTagFilter = null; // New state for filtering by tag
+    let currentTagFilter = null;
     const DEFAULT_LISTS = [{ id: 'personal', name: 'Personal' }, { id: 'work', name: 'Work' }];
     
     // AUTHENTICATION STATE
     let currentUserId = 'local_guest';
     const TASK_STORAGE_KEY = () => `unifiedTasks_${currentUserId}`;
     const LIST_STORAGE_KEY = () => `unifiedLists_${currentUserId}`;
-    const TAG_STORAGE_KEY = () => `unifiedTags_${currentUserId}`; // New key for global tags
-
+    const TAG_STORAGE_KEY = () => `unifiedTags_${currentUserId}`;
+    
     // --- Auth UI Manager (unchanged) ---
     const updateAuthUI = (isSignedIn, userName = '') => {
         // ... (unchanged logic) ...
