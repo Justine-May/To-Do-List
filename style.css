@@ -1,11 +1,15 @@
-/* Existing styles from the merged idea remain unchanged */
-
+/* --- New Global Structure --- */
 :root {
     --primary-color: #3498db; /* Blue */
     --secondary-color: #2c3e50; /* Dark Blue */
-    --accent-color: #2ecc71; /* Green for save */
-    --bg-color: #f4f7f6;
+    --accent-color: #f39c12; /* Yellow/Orange for Save */
+    --delete-color: #e74c3c;
+    --bg-color: #f4f7f6; /* Light gray background */
+    --nav-bg: #fff;
     --border-color: #e0e0e0;
+    --nav-width: 250px; 
+    --details-width: 400px; 
+    --mobile-header-height: 60px; /* NEW: Define a height for the sticky header */
 }
 
 body {
@@ -16,105 +20,168 @@ body {
 }
 
 .app-container {
-    display: flex;
+    display: grid;
+    /* Nav (fixed 250px) | Main (grows 1fr) | Details (fixed 400px) */
+    grid-template-columns: var(--nav-width) 1fr var(--details-width); 
     max-width: 1400px;
-    margin: 40px auto;
-    border-radius: 10px;
+    margin: 0 auto;
+    min-height: 100vh;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     background-color: #fff;
-    min-height: 85vh;
     overflow: hidden;
 }
 
-/* --- Left Panel (Main List) --- */
-.main-list {
-    flex: 1; 
-    padding: 30px;
+/* Add a style for the task item to prevent overflow on small screens */
+.task-info-tags {
+    font-size: 12px;
+    color: #777;
+    margin-left: 15px;
+    /* NEW: Prevent info tags from wrapping awkwardly */
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- Navigation Panel (LEFT) --- */
+.nav-panel {
+    background-color: var(--nav-bg);
     border-right: 1px solid var(--border-color);
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.menu-header {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--secondary-color);
+    padding: 0 20px 10px 20px;
+    margin-bottom: 10px;
+}
+
+.menu-search {
+    padding: 0 20px 15px 20px;
+}
+
+#menu-search-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+.menu-section-title {
+    font-size: 11px;
+    font-weight: bold;
+    color: #999;
+    padding: 10px 20px 5px 20px;
+    text-transform: uppercase;
+}
+
+.menu-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--secondary-color);
+    transition: background-color 0.1s;
+}
+
+.menu-item .icon {
+    margin-right: 10px;
+}
+
+.menu-item:hover {
+    background-color: var(--bg-color);
+}
+
+.active-menu-item {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+}
+
+.active-menu-item:hover {
+    background-color: var(--primary-color);
+}
+
+.task-count {
+    background-color: var(--bg-color);
+    color: var(--secondary-color);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.active-menu-item .task-count {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.menu-footer {
+    margin-top: auto; 
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+
+/* --- Main Content (CENTER) --- */
+.main-content {
+    padding: 30px 40px;
+    background-color: #fff;
 }
 
 .auth-section {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 20px;
+    padding-bottom: 20px;
+    /* Remove border bottom for a cleaner look */
+    margin-bottom: 0;
 }
-
-#sign-in-status {
-    font-size: 14px;
-    color: var(--secondary-color);
-    font-weight: bold;
-}
-
-/* Standard Google button container (GIS library handles the button look) */
-.g_id_signin {
-    width: 150px; /* Adjust size as needed for the button */
-}
-
-/* Rest of the existing CSS (h1, .list-controls, .input-group, .task-item, .task-details-panel, etc.) goes here... */
 
 h1 {
-    color: var(--primary-color);
-    margin-top: 0;
-}
-
-.list-controls {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-#list-filter, #add-list-btn {
-    padding: 8px 10px;
-    border-radius: 5px;
-    font-size: 14px;
-}
-
-#list-filter {
-    flex-grow: 1;
-    border: 1px solid var(--border-color);
-}
-
-#add-list-btn {
-    border: none;
-    background-color: var(--secondary-color);
-    color: white;
-    cursor: pointer;
-}
-#add-list-btn:hover {
-    background-color: #3f556d;
-}
-
-.input-group {
-    display: flex;
+    align-items: baseline;
+    font-size: 32px;
+    color: var(--secondary-color);
+    margin-top: 10px;
     margin-bottom: 25px;
-    gap: 5px;
 }
 
-.input-group input {
+.header-count {
+    font-size: 24px;
+    color: #999;
+    font-weight: normal;
+    margin-left: 10px;
+}
+
+.input-group.add-task-group {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    margin-bottom: 25px;
+}
+
+.add-task-icon {
+    font-size: 20px;
+    color: var(--primary-color);
+    padding: 0 10px;
+}
+
+#new-task-title {
     flex-grow: 1;
     padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    font-size: 16px;
-}
-
-#add-task-btn {
-    padding: 10px 15px;
     border: none;
-    background-color: var(--primary-color);
-    color: white;
+    border-radius: 0 5px 5px 0;
     font-size: 16px;
-    cursor: pointer;
-    border-radius: 5px;
-    transition: background-color 0.2s;
-}
-#add-task-btn:hover {
-    background-color: #2980b9;
 }
 
+/* Task List Styling */
 #task-list {
     list-style: none;
     padding: 0;
@@ -124,21 +191,20 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 15px;
-    margin-bottom: 10px;
-    background-color: var(--bg-color);
-    border-radius: 5px;
+    padding: 12px 0;
+    margin-bottom: 0;
+    background-color: transparent;
+    border-bottom: 1px solid var(--border-color);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.1s;
 }
 
 .task-item:hover {
-    background-color: #e8ebec;
+    background-color: #f7f7f7;
 }
 
 .task-item.active {
-    border-left: 5px solid var(--primary-color);
-    background-color: #f9f9f9;
+    background-color: #f0f0f0;
 }
 
 .task-main-details {
@@ -147,9 +213,15 @@ h1 {
     flex-grow: 1;
 }
 
+.task-main-details input[type="checkbox"] {
+    margin-right: 15px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
 .task-text {
     flex-grow: 1;
-    margin-left: 10px;
     font-size: 16px;
 }
 
@@ -165,51 +237,33 @@ h1 {
 }
 
 
-/* --- Right Panel (Details Editor) --- */
+/* --- Task Details Panel (RIGHT) --- */
 .task-details-panel {
-    width: 400px;
     padding: 30px;
-    background-color: #fff;
+    background-color: var(--bg-color); /* Lighter background for the panel */
     position: relative;
-    box-shadow: -5px 0 10px rgba(0, 0, 0, 0.05);
-}
-
-.hidden {
-    display: none;
 }
 
 .close-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: var(--secondary-color);
+    top: 15px;
+    right: 15px;
 }
 
 #detail-title {
-    color: var(--primary-color);
-    margin-top: 0;
+    font-size: 20px;
+    color: var(--secondary-color);
     padding-bottom: 10px;
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 20px;
 }
 
-.detail-section {
-    margin-bottom: 20px;
-}
-
 .detail-section label {
-    display: block;
     font-weight: bold;
-    margin-bottom: 5px;
-    font-size: 14px;
-    color: var(--secondary-color);
+    font-size: 13px;
+    color: #555;
 }
 
-.detail-section input, .detail-section select {
+.detail-section input, .detail-section select, .detail-section textarea {
     width: 100%;
     padding: 10px;
     border: 1px solid var(--border-color);
@@ -217,83 +271,254 @@ h1 {
     box-sizing: border-box;
 }
 
+.detail-section textarea {
+    resize: vertical;
+}
+
+.detail-row {
+    display: flex;
+    gap: 20px;
+}
+
+.detail-col {
+    flex: 1;
+}
+
+/* Tags Styling */
+.tags-section {
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#detail-tags-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.task-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    background-color: #5bc0de; /* Default tag color */
+    cursor: pointer;
+}
+
+.tag-input-group {
+    display: flex;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.tag-input-group input {
+    flex-grow: 1;
+}
+
+#add-tag-to-task-btn {
+    padding: 8px 10px;
+    border: none;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
 /* Subtask List Styling */
+.subtask-input {
+    margin-bottom: 10px;
+}
+
 #subtask-list {
-    list-style: none;
-    padding: 0;
-    margin-top: 15px;
+    margin-top: 10px;
 }
 
 .subtask-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px dashed var(--border-color);
-}
-
-.subtask-item:last-child {
+    justify-content: flex-start;
+    padding: 5px 0;
     border-bottom: none;
 }
 
 .subtask-text {
-    flex-grow: 1;
-    margin-left: 10px;
     font-size: 14px;
-}
-
-.subtask-item.completed .subtask-text {
-    text-decoration: line-through;
-    color: #999;
 }
 
 /* Actions Group (Save/Delete) */
 .actions-group {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end; /* Align to the right */
+    gap: 15px;
     margin-top: 30px;
     padding-top: 20px;
     border-top: 1px solid var(--border-color);
 }
 
 .delete-btn {
-    background-color: #e74c3c;
-    color: white;
-    padding: 10px 15px;
+    background-color: transparent;
+    color: var(--delete-color);
     border: none;
-    border-radius: 5px;
-    cursor: pointer;
+    font-weight: bold;
 }
 
 .save-btn {
     background-color: var(--accent-color);
     color: white;
-    padding: 10px 15px;
+    padding: 10px 20px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-}
-
-.save-btn:hover {
-    background-color: #27ae60;
-}
-
-.auth-button {
-    padding: 8px 15px;
-    border: 1px solid var(--secondary-color);
-    background-color: transparent;
-    color: var(--secondary-color);
-    border-radius: 5px;
-    cursor: pointer;
     font-weight: bold;
-    margin-left: 10px;
-}
-
-.auth-button:hover {
-    background-color: var(--secondary-color);
-    color: white;
 }
 
 .hidden {
     display: none !important;
+}
+/* ---------------------------------------------------------------------- */
+/* ## 1. Tablet and Smaller Desktop Layout (Max-width: 1200px)           */
+/* ---------------------------------------------------------------------- */
+
+@media (max-width: 1200px) {
+    /* Your CSS for Tablet/Smaller Desktop (2-column layout, details as overlay) */
+    :root {
+        --nav-width: 220px;
+        --details-width: 300px;
+    }
+
+    .app-container {
+        grid-template-columns: var(--nav-width) 1fr;
+        max-width: 100%;
+        box-shadow: none;
+    }
+
+    .task-details-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: var(--details-width);
+        border-left: 1px solid var(--border-color);
+        z-index: 100;
+        transform: translateX(100%);
+        transition: transform 0.3s ease-out;
+    }
+
+    .task-details-panel:not(.hidden) {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        padding: 20px 30px;
+    }
+}
+
+/* ---------------------------------------------------------------------- */
+/* ## 2. Mobile Layout (Max-width: 768px)                               */
+/* ---------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+    /* Your CSS for Mobile Layout (Sidebar and Details as full-screen overlays) */
+    
+    .app-container {
+        display: block;
+        min-height: auto;
+    }
+
+    /* Note: You MUST add a new HTML element for '.mobile-header-bar' */
+    .mobile-header-bar {
+        position: sticky;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: var(--mobile-header-height);
+        background-color: var(--nav-bg);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 15px;
+        z-index: 1000;
+    }
+
+    .nav-panel {
+        position: fixed;
+        top: 0; 
+        left: 0;
+        bottom: 0;
+        width: 80%; 
+        border-right: none;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-out;
+        box-shadow: 5px 0 15px rgba(0, 0, 0, 0.2);
+        overflow-y: auto;
+    }
+    
+    .nav-panel.is-open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        padding: 15px;
+        padding-top: calc(15px + var(--mobile-header-height)); 
+    }
+    
+    h1 {
+        font-size: 24px;
+        margin-bottom: 15px;
+    }
+    
+    .header-count {
+        font-size: 18px;
+    }
+
+    .task-details-panel {
+        width: 100%;
+        transform: translateX(100%);
+        z-index: 2000;
+        background-color: white;
+    }
+}
+
+/* ---------------------------------------------------------------------- */
+/* ## 3. Extra Mobile Adjustments (All Sections)                         */
+/* ---------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+    /* These rules ensure elements fit better and are easier to tap */
+    
+    .menu-item {
+        padding: 12px 15px;
+    }
+    
+    .task-item {
+        padding: 15px 5px;
+    }
+
+    .task-main-details input[type="checkbox"] {
+        width: 24px;
+        height: 24px;
+    }
+
+    .task-info-tags {
+        display: none; /* Hide extraneous info tags in the list to save space */
+    }
+
+    .detail-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .actions-group {
+        margin-top: 20px;
+        padding-top: 15px;
+    }
+
+    .delete-btn, .save-btn {
+        flex-grow: 1;
+        padding: 12px;
+        font-size: 16px;
+    }
 }

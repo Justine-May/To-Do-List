@@ -11,59 +11,118 @@
 <body>
 
     <div class="app-container">
-        
-        <div class="main-list">
+        <div class="nav-panel">
+            <div class="menu-header">Menu</div>
             
+            <div class="menu-search">
+                <input type="text" id="menu-search-input" placeholder="Q Search">
+            </div>
+
+            <div class="menu-section-title">TASKS</div>
+            
+            <div class="menu-item" id="upcoming-filter-btn">
+                » Upcoming
+                <span class="task-count" id="upcoming-task-count">0</span>
+            </div>
+            <div class="menu-item active-menu-item" id="today-filter-btn">
+                <span class="icon">📅</span> Today 
+                <span class="task-count" id="today-task-count">0</span>
+            </div>
+            <div class="menu-item" id="all-tasks-filter-btn">
+                 <span class="icon">📋</span> All Tasks
+            </div>
+
+            <div class="menu-section-title">LISTS</div>
+            <div id="list-menu-items">
+                </div>
+            <div class="menu-item" id="add-list-btn">
+                + Add New List
+            </div>
+
+            <div class="menu-section-title">TAGS</div>
+            <div id="tag-menu-items">
+                <div class="menu-item" id="add-tag-btn">+ Add Tag</div>
+            </div>
+
+            <div class="menu-footer">
+                <div class="menu-item" id="settings-link"><span class="icon">⚙️</span> Settings</div>
+                <div class="menu-item" id="sign-out-btn"><span class="icon">➡️</span> Sign out</div>
+            </div>
+        </div>
+        
+        <div class="main-content">
             <div class="auth-section">
                 <div id="sign-in-status">Signed out. Data is local.</div>
                 
-                <div id="g_id_onload"
-                 data-client_id="603242997411-l4br2gg0fup8pl8uks2a5gpvnfmj1ml3.apps.googleusercontent.com" 
-                 data-callback="handleCredentialResponse"
-                 data-auto_prompt="false">
+                <div id="google-auth-controls">
+                    <div id="g_id_onload"
+                        data-client_id="603242997411-l4br2gg0fup8pl8uks2a5gpvnfmj1ml3.apps.googleusercontent.com" 
+                        data-callback="handleCredentialResponse"
+                        data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin" 
+                        data-type="standard"
+                        data-size="medium"
+                        data-theme="outline"
+                        data-text="sign_in_with"
+                        data-shape="rectangular"
+                        data-logo_alignment="left">
+                    </div>
                 </div>
-                <div class="g_id_signin" 
-                     data-type="standard"
-                     data-size="large"
-                     data-theme="outline"
-                     data-text="sign_in_with"
-                     data-shape="rectangular"
-                     data-logo_alignment="left">
-                </div>
-
-                <button id="sign-out-btn" class="hidden auth-button">Sign Out</button>
             </div>
 
-            <h1>My Task List 📝</h1>
+            <h1><span id="main-header">Today</span> <span class="header-count" id="task-count-display">0</span></h1>
             
-            <div class="list-controls">
-                <select id="list-filter">
-                    </select>
-                <button id="add-list-btn">+ New List</button>
+            <div class="input-group add-task-group">
+                <span class="add-task-icon">+</span>
+                <input type="text" id="new-task-title" placeholder="Add New Task" autofocus>
             </div>
-
-            <div class="input-group">
-                <input type="text" id="new-task-title" placeholder="Add a new task..." autofocus>
-                <button id="add-task-btn">Add</button>
-            </div>
-
+            
             <ul id="task-list">
-                </ul>
+            </ul>
         </div>
-
+        
         <div class="task-details-panel hidden" id="task-details-panel">
-            <h2 id="detail-title">Task Details</h2>
+            <h2 id="detail-title">Task: Renew driver's license</h2>
             <button class="close-btn" id="close-details-btn">×</button>
 
-            <div class="detail-section"><label for="detail-text">Task Title</label><input type="text" id="detail-text"></div>
-            <div class="detail-section"><label for="detail-due-date">Due Date</label><input type="date" id="detail-due-date"></div>
-            <div class="detail-section"><label for="detail-list">List Category</label><select id="detail-list"></select></div>
+            <div class="detail-section">
+                <label for="detail-text">Task Title</label>
+                <input type="text" id="detail-text">
+            </div>
+            
+            <div class="detail-section">
+                <label for="detail-description">Description</label>
+                <textarea id="detail-description" rows="3"></textarea>
+            </div>
+            
+            <div class="detail-section detail-row">
+                <div class="detail-col">
+                    <label for="detail-list">List</label>
+                    <select id="detail-list"></select>
+                </div>
+                <div class="detail-col">
+                    <label for="detail-due-date">Due date</label>
+                    <input type="date" id="detail-due-date">
+                </div>
+            </div>
+            
+            <div class="detail-section tags-section">
+                <label>Tags</label>
+                <div id="detail-tags-display">
+                    </div>
+                <div class="tag-input-group">
+                    <input type="text" id="new-tag-text" placeholder="Add Tag">
+                    <button id="add-tag-to-task-btn">+ Add Tag</button>
+                </div>
+            </div>
 
             <div class="detail-section">
-                <h3>Subtasks</h3>
+                <h3>Subtasks:</h3>
                 <div class="input-group subtask-input">
-                    <input type="text" id="new-subtask-text" placeholder="Add new subtask">
-                    <button id="add-subtask-btn">Add</button>
+                    <span class="add-task-icon">+</span>
+                    <input type="text" id="new-subtask-text" placeholder="Add New Subtask">
+                    <button id="add-subtask-btn" class="hidden">Add</button>
                 </div>
                 <ul id="subtask-list"></ul>
             </div>
