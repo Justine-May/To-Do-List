@@ -45,6 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Decode the JWT to get user info (DANGEROUS on client, but fine for simulation)
             const payload = JSON.parse(atob(idToken.split('.')[1]));
+
+            console.log("Your Unique Google User ID (sub):", currentUserId); 
+            console.log("Full User Data:", payload); 
             
             // SIMULATION: Update the user state and reload data
             currentUserId = payload.sub; // Google User ID (sub field)
