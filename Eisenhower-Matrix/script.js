@@ -1,87 +1,107 @@
+// Global context variable for drawing
+let ctx; 
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- Global Selectors and Mappings ---
     const modal = document.getElementById('task-details-modal');
     const closeButton = document.querySelector('.close-button');
     const deleteTaskBtn = document.getElementById('delete-task-btn');
     const quadrants = document.querySelectorAll('.quadrant');
-    const selectedTagsContainer = document.getElementById('selected-tags');
     const matrixContainer = document.getElementById('matrix-container');
     const allTasksContainer = document.getElementById('all-tasks-container');
     const allTasksList = document.getElementById('all-tasks-list');
+    
+    // Menu item selectors (CRITICAL for view switching)
     const allTasksMenuItem = document.getElementById('all-tasks-menu-item');
     const stickyWallMenuItem = document.getElementById('sticky-wall-menu-item'); 
-    const stickyBoard = document.getElementById('sticky-canvas-board');
-    const boardColumns = document.querySelectorAll('.board-column'); 
-
-    // NEW TOOLBAR SELECTORS (MAIN)
-    const stickyToolbarContainer = document.getElementById('sticky-toolbar-container');
-    const stickyNoteToolBtn = document.querySelector('.sticky-note-tool');
-    const stickyNoteColorPicker = document.getElementById('sticky-note-color-picker');
-    const stampToolBtn = document.querySelector('.stamp-tool');
-    const stampRadialMenu = document.getElementById('stamp-radial-menu');
-
-    // NEW TOOLBAR SELECTORS (DRAWING OPTIONS)
-    const drawingToolTriggers = document.querySelectorAll('.drawing-tool-trigger');
-    const drawingOptionsToolbar = document.getElementById('drawing-options-toolbar');
-    const drawingColorSwatches = document.querySelectorAll('.color-swatch-drawing');
+    const todayMenuItem = document.querySelector('.task-item.active'); 
     
-    const radialCenter = document.querySelector('.radial-center');
-    const mainGreeting = document.getElementById('main-greeting');
-    const editableQuote = document.getElementById('editable-quote');
+    // Corkboard selectors
+    const stickyCanvasBoard = document.getElementById('sticky-canvas-board'); 
+    const addNoteCenterBtn = document.getElementById('add-note-center'); 
+    
+    // Main toolbar selectors
+    const stickyToolbarContainer = document.getElementById('sticky-toolbar-container');
+    const stickyNoteColorPicker = document.getElementById('sticky-note-color-picker');
+    const drawingOptionsToolbar = document.getElementById('drawing-options-toolbar');
+    const stampRadialMenu = document.getElementById('stamp-radial-menu');
+    const stickyNoteToolBtn = document.getElementById('sticky-note-tool-btn'); 
+    const stampToolBtn = document.getElementById('stamp-tool-btn'); 
+    const drawingToolBtn = document.getElementById('drawing-tool-btn'); 
+
+    // Form fields
+    const taskForm = document.getElementById('task-form');
+    const taskIdInput = document.getElementById('current-task-id');
+    const taskTitleInput = document.getElementById('task-title');
+    const taskDescriptionTextarea = document.getElementById('task-description');
+    const taskDueDateInput = document.getElementById('task-due-date');
 
     // --- GLOBALS FOR TASK MANAGEMENT ---
     let draggedTask = null;
     let taskIdCounter = 1;
     let isCreatingNewTask = false;
-    let newTaskQuadrant = '';
+    let newTaskQuadrant = 'do'; 
     
-    // NEW: Toolbar state variables
-    let currentStickyNoteColor = 'yellow'; // Default sticky note color
-    let currentStampIcon = '<i class="fas fa-user"></i>'; // Default stamp icon for center
-    let activeTool = 'select'; // Default active tool
+    // Canvas state variables
+    let notePlacementX = 0;
+    let notePlacementY = 0;
+    let isNewTaskFromCanvas = false; 
     
-    // NEW: Drawing state variables
-    let currentDrawingTool = 'washi'; // Default to washi
-    let currentThickness = 'thin';
+    // Toolbar state variables (FigmaJam-like)
+    let currentStickyNoteColor = 'white'; 
+    let activeTool = 'select'; // Default active tool (FigmaJam-like)
+
+    // Hand Tool Panning Variables
+    let isPanning = false;
+    let startX = 0;
+    let startY = 0;
+    let scrollLeft = 0;
+    let scrollTop = 0;
+    
+    // Drawing Variables (NEW)
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+    let currentLineWidth = 8;
     let currentDrawingColor = 'black'; 
 
-    // Initialize tasks and load from Local Storage
     let allTasksData = JSON.parse(localStorage.getItem('eisenhowerTasks')) || [];
 
-    const QUADRANT_TAGS = {
-        'do': ['Urgent', 'Important'],
-        'schedule': ['Not Urgent', 'Important'],
-        'delegate': ['Urgent', 'Not Important'],
-        'delete': ['Not Urgent', 'Not Important']
-    };
-
-    // Mapping for sticky note background colors
     const STICKY_NOTE_BG_COLORS = {
-        'yellow': '#fcfc88',
-        'white': '#ffffff',
-        'pink': '#ffb6c1',
-        'orange': '#ffaf4d',
-        'green': '#a8e0b6',
-        'light-blue': '#a7c8e7',
-        'purple': '#d4a9d4',
-        'red': '#e7a7a7'
+        'white': '#ffffff', 'light-gray': '#EAEAEA', 'light-red': '#FFA07A', 
+        'light-orange': '#FFD700', 'light-yellow': '#FFFFE0', 'light-green': '#90EE90', 
+        'light-blue': '#A7C8E7', 'purple': '#D4A9D4', 'pink': '#ffb6c1'
     };
+    
+    // --- Canvas Initialization / Resizing (FIX) ---
+    const drawingCanvas = document.getElementById('drawing-canvas');
 
-    // --- Initialization ---
-
-    const USER_NAME = "Alice";
-    mainGreeting.textContent = `Hi, ${USER_NAME}!`;
-
-    const savedQuote = localStorage.getItem('userQuote');
-    if (savedQuote) {
-        editableQuote.textContent = savedQuote;
-    } else {
-        editableQuote.textContent = "Empty quote";
+    function resizeCanvas() {
+        if (drawingCanvas && stickyCanvasBoard) {
+            // Set canvas dimensions to the scrollable area (min-width/height defined in CSS)
+            drawingCanvas.width = stickyCanvasBoard.scrollWidth;
+            drawingCanvas.height = stickyCanvasBoard.scrollHeight;
+            
+            // Re-get context on resize, although usually not necessary, it's safer
+            ctx = drawingCanvas.getContext('2d');
+            
+            // Set drawing properties
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            // You might need logic here to redraw previous canvas content if you were saving it.
+        }
+    }
+    
+    // Initial canvas setup
+    if (drawingCanvas) {
+        resizeCanvas();
     }
 
-    editableQuote.addEventListener('input', () => {
-        localStorage.setItem('userQuote', editableQuote.textContent);
-    });
+
+    // Initial greeting update (for completeness)
+    const mainGreeting = document.getElementById('main-greeting');
+    if (mainGreeting) mainGreeting.textContent = `Hi, User!`;
+
 
     // --- Core Data Management ---
 
@@ -100,8 +120,254 @@ document.addEventListener('DOMContentLoaded', () => {
             saveTasksToLocalStorage();
         }
     }
+    
+    function deleteTask(taskId) {
+        allTasksData = allTasksData.filter(task => task.id !== parseInt(taskId));
+        saveTasksToLocalStorage();
+        renderMatrixView();
+        renderAllTasksView();
+        renderStickyWall();
+    }
+    
+    // --- Toolbar and Tool Logic (FigmaJam-like) ---
+
+    function setActiveTool(toolName) {
+        // 1. Clear active state on all main tool buttons
+        document.querySelectorAll('.sticky-toolbar .tool-btn').forEach(btn => btn.classList.remove('active'));
+        
+        // 2. Hide radial menus 
+        stickyNoteColorPicker.classList.remove('show');
+        stampRadialMenu.classList.remove('show');
+        
+        // 3. Hide secondary drawing toolbar if a non-drawing tool is selected
+        if (toolName !== 'marker' && toolName !== 'highlighter' && toolName !== 'eraser') {
+            drawingOptionsToolbar.classList.remove('show');
+            stickyCanvasBoard.classList.remove('drawing-active'); // DISABLE DRAWING
+        }
+
+        // 4. Remove hand tool class from canvas and reset cursor
+        stickyCanvasBoard.classList.remove('hand-tool-active');
+        stickyCanvasBoard.style.cursor = 'default';
+        
+        // 5. Update the active tool state
+        activeTool = toolName;
+
+        // 6. Apply active state and control canvas behavior
+        
+        // Find the main tool button based on toolName (handles 'select', 'hand', 'drawing', 'sticky-note', 'stamp')
+        const mainToolButton = document.querySelector(`.sticky-toolbar .tool-btn[data-tool="${toolName}"]`);
+        if (mainToolButton) {
+            mainToolButton.classList.add('active');
+        }
+        
+        // Special case: If a drawing sub-tool is selected, activate the main 'drawing' button and show the sub-toolbar
+        if (toolName === 'marker' || toolName === 'highlighter' || toolName === 'eraser') {
+            stickyCanvasBoard.classList.add('drawing-active'); // ENABLE DRAWING
+            if(drawingToolBtn) drawingToolBtn.classList.add('active');
+            drawingOptionsToolbar.classList.add('show');
+            
+            // Also activate the specific sub-tool button
+            document.querySelectorAll('#drawing-options-toolbar .tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+            const subToolButton = document.querySelector(`#drawing-options-toolbar .tool-btn[data-tool="${toolName}"]`);
+            if (subToolButton) {
+                subToolButton.classList.add('active');
+            }
+            stickyCanvasBoard.style.cursor = 'crosshair';
+        } else if (toolName === 'sticky-note') {
+             stickyCanvasBoard.style.cursor = 'copy';
+        } else if (toolName === 'hand') {
+            stickyCanvasBoard.classList.add('hand-tool-active');
+            stickyCanvasBoard.style.cursor = 'grab';
+        }
+    }
+    
+    // --- Drawing Function (CRITICAL FIX) ---
+    function draw(e) {
+        if (!isDrawing || !ctx) return; 
+
+        // Prevent scrolling/panning while drawing
+        e.preventDefault(); 
+        
+        const rect = drawingCanvas.getBoundingClientRect();
+        // Get mouse coordinates relative to the canvas viewport
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Adjust coordinates for canvas scroll position to draw in the correct place
+        const x = mouseX + stickyCanvasBoard.scrollLeft;
+        const y = mouseY + stickyCanvasBoard.scrollTop;
+        
+        ctx.beginPath();
+        
+        // Set drawing style based on active tool
+        if (activeTool === 'marker') {
+            ctx.strokeStyle = currentDrawingColor;
+            ctx.lineWidth = currentLineWidth; // 8px
+            ctx.globalAlpha = 1.0; 
+            ctx.globalCompositeOperation = 'source-over'; // Standard draw
+        } else if (activeTool === 'highlighter') {
+            // Apply a slight opacity to the drawing color for the highlighter effect
+            const rgbaColor = currentDrawingColor.startsWith('#') ? hexToRgba(currentDrawingColor, 0.5) : `rgba(${currentDrawingColor}, 0.5)`;
+            ctx.strokeStyle = rgbaColor;
+            ctx.lineWidth = 20; // Thicker
+            ctx.globalAlpha = 1.0; // Alpha is built into the color
+            ctx.globalCompositeOperation = 'source-over';
+        } else if (activeTool === 'eraser') {
+            // Eraser uses destination-out to permanently clear pixels
+            ctx.strokeStyle = 'rgba(0,0,0,1)'; // The color doesn't matter for destination-out
+            ctx.lineWidth = 30; 
+            ctx.globalAlpha = 1.0; 
+            ctx.globalCompositeOperation = 'destination-out'; // Erase by cutting away existing content
+        }
+
+        // Draw the line segment
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        
+        ctx.stroke();
+        [lastX, lastY] = [x, y];
+    }
+    
+    // Helper function for highlighter color (since colors are defined as hex/names)
+    function hexToRgba(hex, alpha) {
+        if (hex.toLowerCase() === 'black') return `rgba(0,0,0, ${alpha})`;
+        if (hex.toLowerCase() === 'red') return `rgba(255,0,0, ${alpha})`;
+        if (hex.toLowerCase() === 'blue') return `rgba(0,0,255, ${alpha})`;
+        
+        const bigint = parseInt(hex.slice(1), 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+
+    // --- Hand Tool Panning Logic ---
+    
+    stickyCanvasBoard.addEventListener('mousedown', (e) => {
+        // 1. Hand Tool Panning
+        if (activeTool === 'hand') {
+            e.preventDefault();
+            isPanning = true;
+            stickyCanvasBoard.classList.add('is-panning');
+            startX = e.clientX;
+            startY = e.clientY;
+            scrollLeft = stickyCanvasBoard.scrollLeft;
+            scrollTop = stickyCanvasBoard.scrollTop;
+            
+            // Disable dragging on all notes while panning
+            document.querySelectorAll('.sticky-note-card').forEach(note => note.setAttribute('draggable', 'false'));
+            return;
+        }
+        
+        // 2. Sticky Note Creation
+        if (activeTool === 'sticky-note') {
+             // Only create a note if clicking the empty canvas or the central button
+             if (e.target === stickyCanvasBoard || e.target.closest('#add-note-center')) {
+                 e.preventDefault();
+                 isNewTaskFromCanvas = true; 
+                 // Calculate coordinates relative to the canvas's scroll position
+                 notePlacementX = e.offsetX; 
+                 notePlacementY = e.offsetY; 
+                 
+                 // If clicking the central button, place the note just below it
+                 if (e.target.closest('#add-note-center')) {
+                     // Get the canvas board center and adjust for scroll position
+                     const centerX = stickyCanvasBoard.scrollWidth / 2;
+                     const centerY = stickyCanvasBoard.scrollHeight / 2;
+                     notePlacementX = centerX + 20; 
+                     notePlacementY = centerY + 20; 
+                 }
+                 
+                 const newNoteText = 'New Sticky Note'; 
+                 const newNoteDescription = 'Start typing here...';
+
+                 const newTask = {
+                    id: taskIdCounter++,
+                    text: newNoteText,
+                    description: newNoteDescription,
+                    date: new Date().toISOString().split('T')[0],
+                    quadrant: undefined, 
+                    completed: false,
+                    stickyNoteColor: currentStickyNoteColor,
+                    canvasX: notePlacementX,
+                    canvasY: notePlacementY
+                };
+
+                allTasksData.push(newTask);
+                saveTasksToLocalStorage();
+                renderStickyWall(); 
+                
+                // Immediately switch to Select tool and focus on the new note
+                setActiveTool('select');
+                
+                const newCard = document.querySelector(`.sticky-note-card[data-task-id="${newTask.id}"]`);
+                if (newCard) {
+                    newCard.querySelector('h4').focus();
+                }
+             }
+        }
+    });
+
+    stickyCanvasBoard.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
+        e.preventDefault();
+        
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        // Apply inverse movement to the scroll position
+        stickyCanvasBoard.scrollLeft = scrollLeft - dx;
+        stickyCanvasBoard.scrollTop = scrollTop - dy;
+    });
+
+    stickyCanvasBoard.addEventListener('mouseup', () => {
+        isPanning = false;
+        stickyCanvasBoard.classList.remove('is-panning');
+        
+        // Re-enable dragging on all notes after panning stops
+        document.querySelectorAll('.sticky-note-card').forEach(note => note.setAttribute('draggable', 'true'));
+    });
+
+    stickyCanvasBoard.addEventListener('mouseleave', () => {
+        isPanning = false;
+        stickyCanvasBoard.classList.remove('is-panning');
+        
+        // Re-enable dragging on all notes
+        document.querySelectorAll('.sticky-note-card').forEach(note => note.setAttribute('draggable', 'true'));
+    });
+    
+    // --- Drawing Tool Event Listeners (CRITICAL FIX) ---
+    if (drawingCanvas) {
+        drawingCanvas.addEventListener('mousedown', (e) => {
+            if (activeTool === 'marker' || activeTool === 'highlighter' || activeTool === 'eraser') {
+                isDrawing = true;
+                // Get coordinates relative to canvas viewport
+                const rect = drawingCanvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // Adjust coordinates for canvas scroll position
+                lastX = mouseX + stickyCanvasBoard.scrollLeft;
+                lastY = mouseY + stickyCanvasBoard.scrollTop;
+                draw(e); // Start drawing immediately
+            }
+        });
+
+        drawingCanvas.addEventListener('mousemove', draw);
+
+        drawingCanvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        drawingCanvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+        });
+    }
+
 
     // --- Task Rendering/Movement ---
+    // ... (rest of the task logic functions remain the same: handleTaskCompletion, generateTaskHtmlElement, renderAllTasksView, renderMatrixView) ...
 
     function handleTaskCompletion(taskElement, isChecked) {
         const taskId = taskElement.getAttribute('data-task-id');
@@ -111,18 +377,27 @@ document.addEventListener('DOMContentLoaded', () => {
             completed: isChecked,
             completedDate: isChecked ? now : null
         });
-
+        
+        // Remove from Matrix immediately if completed
         if (taskElement.closest('.matrix-grid') && isChecked) {
             taskElement.remove();
         }
-
-        document.querySelectorAll(`.task-item[data-task-id="${taskId}"]`).forEach(item => {
-            item.classList.toggle('completed', isChecked);
-            item.querySelector('input[type="checkbox"]').checked = isChecked;
+        
+        // Sync completion status across all views (sidebar, all tasks, sticky wall)
+        document.querySelectorAll(`[data-task-id="${taskId}"]`).forEach(item => {
+             // For list items
+            if (item.classList.contains('task-item')) {
+                item.classList.toggle('completed', isChecked);
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox) checkbox.checked = isChecked;
+            }
+             // For sticky notes
+            if (item.classList.contains('sticky-note-card')) {
+                 item.classList.toggle('completed-note', isChecked);
+            }
         });
 
         renderAllTasksView();
-        renderStickyWall(); 
     }
 
     function generateTaskHtmlElement(task) {
@@ -155,13 +430,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderAllTasksView() {
         allTasksList.innerHTML = '';
-
         const sortedTasks = allTasksData.sort((a, b) => {
             const dateA = a.completed && a.completedDate ? new Date(a.completedDate) : new Date(a.date);
             const dateB = b.completed && b.completedDate ? new Date(b.completedDate) : new Date(b.date);
             return dateB - dateA;
         });
-
         sortedTasks.forEach(task => {
             const taskElement = generateTaskHtmlElement(task);
             allTasksList.appendChild(taskElement);
@@ -171,116 +444,103 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderMatrixView() {
         quadrants.forEach(quadrant => {
             const taskList = quadrant.querySelector('.task-list');
-            const addTaskButton = taskList.querySelector('.add-task');
+            const addTaskButton = taskList.querySelector('.add-task'); 
             const quadrantKey = quadrant.getAttribute('data-quadrant');
 
             Array.from(taskList.children).filter(child => !child.classList.contains('add-task')).forEach(child => child.remove());
 
-            const tasksInQuadrant = allTasksData.filter(task => task.quadrant === quadrantKey && !task.completed);
+            // Only show non-completed tasks that belong in the matrix (i.e., don't have canvas coords)
+            const tasksInQuadrant = allTasksData.filter(task => 
+                task.quadrant === quadrantKey && 
+                !task.completed &&
+                task.canvasX === undefined &&
+                task.canvasY === undefined
+            );
 
             tasksInQuadrant.forEach(task => {
                 const taskElement = generateTaskHtmlElement(task);
-                taskList.insertBefore(taskElement, addTaskButton);
+                taskList.insertBefore(taskElement, addTaskButton); 
             });
         });
     }
 
-    // --- REVISED STICKY WALL RENDER LOGIC (Board View) ---
+
+    // --- CORKBOARD RENDER LOGIC ---
     function renderStickyWall() {
-        boardColumns.forEach(column => {
-            const taskList = column.querySelector('.board-task-list');
-            const quadrantKey = column.getAttribute('data-quadrant');
-            taskList.innerHTML = ''; // Clear existing cards
-
-            const tasksInQuadrant = allTasksData.filter(task => task.quadrant === quadrantKey);
-
-            tasksInQuadrant.forEach(task => {
-                const card = createStickyBoardCard(task);
-                taskList.appendChild(card);
-            });
+        // Clear all previous notes but keep the central button and the drawing canvas
+        const notesAndCanvas = stickyCanvasBoard.querySelectorAll('.sticky-note-card, #drawing-canvas');
+        notesAndCanvas.forEach(el => {
+            if (el.id !== 'drawing-canvas') {
+                el.remove();
+            }
         });
+
+        const canvasTasks = allTasksData.filter(task => task.canvasX !== undefined && task.canvasY !== undefined);
+
+        canvasTasks.forEach(task => {
+            const card = createStickyBoardCard(task);
+            stickyCanvasBoard.appendChild(card);
+        });
+        
+        // Hide/Show the central button based on whether any notes exist
+        addNoteCenterBtn.style.display = canvasTasks.length === 0 ? 'block' : 'none';
     }
 
     function createStickyBoardCard(task) {
-        const card = document.createElement('li');
+        const card = document.createElement('div'); 
         
-        // Use the saved stickyNoteColor for background style
-        const bgColor = STICKY_NOTE_BG_COLORS[task.stickyNoteColor] || STICKY_NOTE_BG_COLORS['yellow'];
+        const bgColor = STICKY_NOTE_BG_COLORS[task.stickyNoteColor] || STICKY_NOTE_BG_COLORS['white']; 
         
-        card.className = `sticky-note-card ${task.quadrant}-color ${task.completed ? 'completed-note' : ''}`;
+        card.className = `sticky-note-card ${task.completed ? 'completed-note' : ''}`;
         card.style.backgroundColor = bgColor; 
+        
+        card.style.position = 'absolute';
+        card.style.left = `${task.canvasX}px`;
+        card.style.top = `${task.canvasY}px`;
         
         if (task.stickyNoteColor === 'white') {
             card.style.border = '1px solid #ddd';
         }
 
         card.setAttribute('data-task-id', task.id);
-        card.setAttribute('draggable', 'true');
+        card.setAttribute('draggable', 'true'); 
 
-        let dateString;
-        if (task.completed && task.completedDate) {
-            const dateObj = new Date(task.completedDate);
-            dateString = 'Completed: ' + dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        } else {
-            const dateObj = new Date(task.date);
-            dateString = isNaN(dateObj.getTime()) ? 'No Due Date' : 'Due: ' + dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        }
+        let dateString = task.date ? new Date(task.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No Due Date';
 
         card.innerHTML = `
-            <h4>${task.text}</h4>
-            <p>${task.description || 'No description.'}</p>
+            <h4 contenteditable="true">${task.text}</h4>
+            <p contenteditable="true">${task.description || 'No description.'}</p>
             <span class="card-date">${dateString}</span>
         `;
         
-        card.addEventListener('click', () => {
-             const tempTaskElement = { getAttribute: (attr) => attr === 'data-task-id' ? task.id : null };
-             isCreatingNewTask = false;
-             openTaskDetails(tempTaskElement);
+        card.querySelectorAll('[contenteditable="true"]').forEach(el => {
+            el.addEventListener('blur', (e) => {
+                const taskId = card.getAttribute('data-task-id');
+                const updatedField = e.target.tagName === 'H4' ? 'text' : 'description';
+                updateTaskData(taskId, { [updatedField]: e.target.textContent });
+            });
+        });
+        
+        card.addEventListener('click', (e) => {
+            // Prevent modal from opening if clicking to edit text or if currently dragging
+            if (e.target.hasAttribute('contenteditable') || card.classList.contains('is-dragging')) return;
+            openTaskDetails(card);
         });
 
         setupBoardDragAndDrop(card);
         return card;
     }
 
-    // --- View Switching Logic ---
-    function switchView(viewName) {
-        document.querySelectorAll('.menu-sections ul li').forEach(item => item.classList.remove('active'));
+    // --- Drag and Drop Handlers (The movement logic remains the same) ---
 
-        // Hide all containers
-        matrixContainer.style.display = 'none';
-        allTasksContainer.style.display = 'none';
-        document.getElementById('sticky-wall-container').style.display = 'none';
-        stickyToolbarContainer.style.display = 'none'; 
-        drawingOptionsToolbar.classList.remove('show'); // NEW: Hide drawing options bar on view switch
-
-        if (viewName === 'matrix') {
-            matrixContainer.style.display = 'block';
-            renderMatrixView();
-            document.querySelector('.task-item.active')?.classList.remove('active');
-            document.querySelector('.task-item:not(#all-tasks-menu-item):not(#sticky-wall-menu-item)')?.classList.add('active');
-        } else if (viewName === 'all') {
-            allTasksContainer.style.display = 'block';
-            renderAllTasksView();
-            allTasksMenuItem.classList.add('active');
-        } else if (viewName === 'sticky') {
-            document.getElementById('sticky-wall-container').style.display = 'block';
-            stickyToolbarContainer.style.display = 'flex'; 
-            renderStickyWall();
-            stickyWallMenuItem.classList.add('active');
-            // When switching to sticky wall, re-enable the last active tool
-            setActiveTool(activeTool); 
-        }
-    }
-
-    // --- Drag and Drop Handlers (Unchanged) ---
     function setupDragAndDropListeners(taskElement) {
         taskElement.addEventListener('dragstart', handleDragStart);
         taskElement.addEventListener('dragend', handleDragEnd);
     }
-
+    
     function setupBoardDragAndDrop(cardElement) {
-        cardElement.addEventListener('dragstart', handleDragStart);
-        cardElement.addEventListener('dragend', handleDragEnd);
+        cardElement.addEventListener('dragstart', handleCanvasDragStart);
+        cardElement.addEventListener('dragend', handleCanvasDragEnd);
     }
 
     function handleDragStart(e) {
@@ -293,459 +553,339 @@ document.addEventListener('DOMContentLoaded', () => {
         this.classList.remove('is-dragging');
         draggedTask = null;
     }
+    
+    function handleCanvasDragStart(e) {
+        draggedTask = this;
+        setTimeout(() => this.classList.add('is-dragging'), 0);
+        e.dataTransfer.setData('text/plain', this.getAttribute('data-task-id'));
+        
+        const rect = this.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+        e.dataTransfer.setData('application/x-drag-offset-x', offsetX);
+        e.dataTransfer.setData('application/x-drag-offset-y', offsetY);
+    }
+    
+    function handleCanvasDragEnd() {
+        this.classList.remove('is-dragging');
+        draggedTask = null;
+    }
 
+    // Matrix Drop Zone
     quadrants.forEach(quadrant => {
-        const taskList = quadrant.querySelector('.task-list');
-
-        quadrant.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            quadrant.classList.add('drag-over');
-        });
-
-        quadrant.addEventListener('dragleave', () => {
-            quadrant.classList.remove('drag-over');
-        });
-
+        quadrant.addEventListener('dragover', (e) => { e.preventDefault(); quadrant.classList.add('drag-over'); });
+        quadrant.addEventListener('dragleave', () => { quadrant.classList.remove('drag-over'); });
         quadrant.addEventListener('drop', (e) => {
             e.preventDefault();
             quadrant.classList.remove('drag-over');
+            const taskId = e.dataTransfer.getData('text/plain');
+            const targetQuadrant = quadrant.getAttribute('data-quadrant');
             
-            if (draggedTask && (draggedTask.closest('.matrix-grid') || draggedTask.closest('#sticky-canvas-board'))) {
-                const addTaskButton = taskList.querySelector('.add-task');
-                
-                if (addTaskButton) {
-                    taskList.insertBefore(draggedTask, addTaskButton);
-                } else {
-                    taskList.appendChild(draggedTask);
-                }
-                updateTaskData(draggedTask.getAttribute('data-task-id'), { quadrant: quadrant.getAttribute('data-quadrant') });
-                
-                renderStickyWall(); 
+            const taskData = getTaskData(taskId);
+            if (taskData) {
+                updateTaskData(taskId, { 
+                    quadrant: targetQuadrant,
+                    // Remove canvas coordinates when dropping back into Matrix
+                    canvasX: undefined, 
+                    canvasY: undefined
+                }); 
             }
+            renderMatrixView();
+            renderStickyWall();
         });
     });
 
-    boardColumns.forEach(column => {
-        const taskList = column.querySelector('.board-task-list');
 
-        column.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            column.classList.add('drag-over');
-        });
-
-        column.addEventListener('dragleave', () => {
-            column.classList.remove('drag-over');
-        });
-
-        column.addEventListener('drop', (e) => {
-            e.preventDefault();
-            column.classList.remove('drag-over');
-            
-            if (draggedTask && (draggedTask.classList.contains('task-item') || draggedTask.classList.contains('sticky-note-card'))) {
-                
-                const targetQuadrant = column.getAttribute('data-quadrant');
-                
-                updateTaskData(draggedTask.getAttribute('data-task-id'), { quadrant: targetQuadrant });
-                
-                renderStickyWall(); 
-                renderMatrixView(); 
-            }
-        });
+    // Sticky Canvas Drop Zone
+    stickyCanvasBoard.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        stickyCanvasBoard.classList.add('drag-over');
     });
 
-    // --- Event Listeners and Modal Logic (Mostly Unchanged) ---
+    stickyCanvasBoard.addEventListener('dragleave', () => {
+        stickyCanvasBoard.classList.remove('drag-over');
+    });
+
+    stickyCanvasBoard.addEventListener('drop', (e) => {
+        e.preventDefault();
+        stickyCanvasBoard.classList.remove('drag-over');
+        
+        const taskId = e.dataTransfer.getData('text/plain');
+        const taskData = getTaskData(taskId);
+        
+        if (taskData) {
+            const offsetX = parseFloat(e.dataTransfer.getData('application/x-drag-offset-x')) || 0;
+            const offsetY = parseFloat(e.dataTransfer.getData('application/x-drag-offset-y')) || 0;
+            
+            // Calculate new position relative to the canvas's scroll position
+            const canvasRect = stickyCanvasBoard.getBoundingClientRect();
+            let newX = e.clientX - canvasRect.left - offsetX + stickyCanvasBoard.scrollLeft;
+            let newY = e.clientY - canvasRect.top - offsetY + stickyCanvasBoard.scrollTop;
+
+            const noteWidth = 200;
+            const noteHeight = 150; 
+            // Boundary checks
+            newX = Math.max(0, newX);
+            newY = Math.max(0, newY);
+            newX = Math.min(newX, stickyCanvasBoard.scrollWidth - noteWidth);
+            newY = Math.min(newY, stickyCanvasBoard.scrollHeight - noteHeight);
+
+            updateTaskData(taskId, {
+                canvasX: newX,
+                canvasY: newY,
+                // Ensure note is removed from Matrix quadrant view if dropped on canvas
+                quadrant: undefined 
+            });
+
+            renderStickyWall();
+            renderMatrixView();
+        }
+    });
+
+    // --- View Switching Logic (FIX: Added resizeCanvas call) ---
+    function switchView(viewName) {
+        // 1. Reset all active menu items
+        document.querySelectorAll('.menu-sections ul li').forEach(item => item.classList.remove('active'));
+
+        // 2. Hide all main containers
+        matrixContainer.style.display = 'none';
+        allTasksContainer.style.display = 'none';
+        document.getElementById('sticky-wall-container').style.display = 'none';
+
+        // 3. Hide toolbar and sub-menus by default (except when sticky is active)
+        stickyToolbarContainer.style.display = 'none';
+        drawingOptionsToolbar.classList.remove('show');
+        stickyNoteColorPicker.classList.remove('show');
+        stampRadialMenu.classList.remove('show');
+
+        // 4. Show the selected view
+        if (viewName === 'matrix') {
+            matrixContainer.style.display = 'block';
+            renderMatrixView();
+            if (todayMenuItem) todayMenuItem.classList.add('active');
+        } else if (viewName === 'all') {
+            allTasksContainer.style.display = 'block';
+            renderAllTasksView();
+            allTasksMenuItem.classList.add('active');
+        } else if (viewName === 'sticky') {
+            document.getElementById('sticky-wall-container').style.display = 'block';
+            stickyToolbarContainer.style.display = 'flex'; // Show the toolbar
+            resizeCanvas(); // CRITICAL FIX: Ensure canvas is sized correctly when view loads
+            renderStickyWall();
+            setActiveTool(activeTool); // Re-activate the last tool, defaults to 'select' on first load.
+            stickyWallMenuItem.classList.add('active');
+        }
+    }
+
+    // --- Modal and Form Logic ---
+    // ... (modal functions remain the same: setupTaskListeners, openTaskDetails, closeModal, form submit logic) ...
 
     function setupTaskListeners(taskElement) {
         taskElement.addEventListener('click', (e) => {
-            if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') {
-                return;
-            }
-            const clickedElement = e.target.closest('.task-item');
-            if(clickedElement) {
-                isCreatingNewTask = false;
-                openTaskDetails(clickedElement);
+            if (e.target.tagName !== 'INPUT') {
+                openTaskDetails(taskElement);
             }
         });
 
         const checkbox = taskElement.querySelector('input[type="checkbox"]');
         if (checkbox) {
-            checkbox.addEventListener('change', () => {
-                handleTaskCompletion(taskElement, checkbox.checked);
+            checkbox.addEventListener('change', (e) => {
+                handleTaskCompletion(taskElement, e.target.checked);
             });
         }
     }
 
-    document.querySelector('.matrix-grid').addEventListener('click', (e) => {
-        const addButton = e.target.closest('.add-task');
-        if (addButton) {
-            const quadrantElement = addButton.closest('.quadrant');
-            const quadrantKey = quadrantElement ? quadrantElement.getAttribute('data-quadrant') : 'do';
-            
-            isCreatingNewTask = true;
-            newTaskQuadrant = quadrantKey;
-            
-            openTaskDetails();
-        }
-    });
+    function openTaskDetails(element) {
+        const taskId = element.getAttribute('data-task-id');
+        const task = getTaskData(taskId);
+        
+        if (!task) return; 
 
-    stickyBoard.addEventListener('click', (e) => {
-        const addButton = e.target.closest('.add-task-board');
-        if (addButton) {
-            const columnElement = addButton.closest('.board-column');
-            const quadrantKey = columnElement ? columnElement.getAttribute('data-quadrant') : 'do';
-            
-            isCreatingNewTask = true;
-            newTaskQuadrant = quadrantKey;
-            
-            openTaskDetails();
-        }
-    });
-
-    allTasksMenuItem.addEventListener('click', () => {
-        switchView('all');
-    });
-
-    stickyWallMenuItem.addEventListener('click', () => {
-        switchView('sticky');
-    });
-
-    document.querySelectorAll('.menu-sections ul li').forEach(item => {
-        if (item.id !== 'all-tasks-menu-item' && item.id !== 'sticky-wall-menu-item' && !item.classList.contains('list-item')) {
-            item.addEventListener('click', () => {
-                switchView('matrix');
-                document.querySelectorAll('.menu-sections ul li').forEach(navItem => navItem.classList.remove('active'));
-                item.classList.add('active');
-            });
-        }
-    });
-
-    function closeTaskDetails() { 
-        modal.style.display = 'none'; 
         isCreatingNewTask = false;
-        newTaskQuadrant = '';
-    }
-
-    function openTaskDetails(taskElement = null) {
-        const taskIdInput = document.getElementById('current-task-id');
-        const titleInput = document.getElementById('task-title');
-        const descInput = document.getElementById('task-description');
-        const dateInput = document.getElementById('task-due-date');
-        const deleteButton = document.getElementById('delete-task-btn');
-        const modalTitle = modal.querySelector('h2');
+        taskIdInput.value = task.id;
+        taskTitleInput.value = task.text;
+        taskDescriptionTextarea.value = task.description || '';
+        document.getElementById('task-quadrant').value = task.quadrant || 'do';
+        taskDueDateInput.value = task.date;
         
-        let taskData = {};
-
-        if (taskElement?.getAttribute('data-task-id')) {
-            const taskId = taskElement.getAttribute('data-task-id');
-            taskData = getTaskData(taskId);
-            
-            modalTitle.textContent = 'Edit Task Details';
-            deleteButton.style.display = 'inline-block';
-            taskIdInput.value = taskId;
-            titleInput.value = taskData?.text || '';
-            descInput.value = taskData?.description || '';
-
-            const dueDate = taskData?.date;
-            let dateObj = new Date(dueDate);
-            if (!isNaN(dateObj.getTime())) {
-                const yyyy = dateObj.getFullYear();
-                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-                const dd = String(dateObj.getDate()).padStart(2, '0');
-                dateInput.value = `${yyyy}-${mm}-${dd}`;
-            } else {
-                 dateInput.value = '';
-            }
-
-            selectedTagsContainer.innerHTML = '';
-            if (taskData?.quadrant && QUADRANT_TAGS[taskData.quadrant]) {
-                QUADRANT_TAGS[taskData.quadrant].forEach(tag => {
-                    const tagSpan = document.createElement('span');
-                    tagSpan.className = 'selected-tag';
-                    tagSpan.textContent = tag;
-                    selectedTagsContainer.appendChild(tagSpan);
-                });
-            }
-
-        } else {
-            modalTitle.textContent = 'Create New Task';
-            deleteButton.style.display = 'none';
-            
-            taskIdInput.value = '';
-            titleInput.value = '';
-            descInput.value = '';
-            dateInput.value = '';
-            
-            selectedTagsContainer.innerHTML = '';
-            if (newTaskQuadrant && QUADRANT_TAGS[newTaskQuadrant]) {
-                QUADRANT_TAGS[newTaskQuadrant].forEach(tag => {
-                    const tagSpan = document.createElement('span');
-                    tagSpan.className = 'selected-tag';
-                    tagSpan.textContent = tag;
-                    selectedTagsContainer.appendChild(tagSpan);
-                });
-            }
-        }
-        
-        document.getElementById('task-list').value = 'Personal';
-        document.getElementById('subtask-list').innerHTML = `
-            <li class="new-subtask">
-                <input type="text" placeholder="Add a new subtask">
-                <button type="button" class="add-subtask-btn"><i class="fas fa-plus"></i></button>
-            </li>
-        `;
+        // Tags and subtasks logic would be here if fully implemented
         
         modal.style.display = 'block';
+        deleteTaskBtn.style.display = 'inline-block';
     }
 
-    closeButton.addEventListener('click', closeTaskDetails);
-    window.addEventListener('click', (event) => {
-        if (event.target == modal) {
-            closeTaskDetails();
-        }
-    });
-    
-    document.getElementById('task-form').addEventListener('submit', (e) => {
+    function closeModal() {
+        modal.style.display = 'none';
+        isCreatingNewTask = false; 
+        taskForm.reset();
+        // Clear inputs that are not part of reset()
+        taskIdInput.value = ''; 
+    }
+
+    taskForm.addEventListener('submit', (e) => {
         e.preventDefault();
         
-        const taskId = document.getElementById('current-task-id').value;
-        const newTitle = document.getElementById('task-title').value;
-        const newDescription = document.getElementById('task-description').value;
-        const newDueDate = document.getElementById('task-due-date').value;
+        const taskId = taskIdInput.value;
+        
+        const updates = {
+            text: taskTitleInput.value,
+            description: taskDescriptionTextarea.value,
+            date: taskDueDateInput.value,
+            quadrant: document.getElementById('task-quadrant').value,
+        };
 
-        if (!newTitle.trim()) {
-            alert("Task title cannot be empty.");
-            return;
-        }
-
-        if (isCreatingNewTask) {
-            const today = new Date();
-            const dateString = newDueDate || today.toISOString().split('T')[0];
-
-            const newTaskData = {
-                id: taskIdCounter++,
-                text: newTitle,
-                date: dateString,
-                completed: false,
-                completedDate: null,
-                quadrant: newTaskQuadrant,
-                description: newDescription,
-                stickyNoteColor: currentStickyNoteColor 
-            };
-
-            allTasksData.push(newTaskData);
-            saveTasksToLocalStorage();
-            alert('New task created!');
-
+        if (taskId) {
+            updateTaskData(taskId, updates);
         } else {
-            updateTaskData(taskId, {
-                text: newTitle,
-                description: newDescription,
-                date: newDueDate,
-            });
-            alert('Changes saved!');
+             // This is mostly for matrix/list view creation
+            const newTask = {
+                ...updates,
+                id: taskIdCounter++,
+                completed: false,
+                stickyNoteColor: currentStickyNoteColor,
+                // Ensure new tasks created from form do NOT have canvas coords
+                canvasX: undefined,
+                canvasY: undefined
+            };
+            allTasksData.push(newTask);
+            saveTasksToLocalStorage();
         }
-        
-        isCreatingNewTask = false;
-        newTaskQuadrant = '';
-        
+
+        closeModal();
         renderMatrixView();
         renderAllTasksView();
-        renderStickyWall();
-        closeTaskDetails();
+        renderStickyWall(); // Ensure sticky wall is updated if tasks change
+    });
+
+
+    // --- Event Listeners ---
+
+    // Modal Close
+    closeButton.addEventListener('click', closeModal);
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
     });
     
+    // Delete Task
     deleteTaskBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to delete this task?')) {
-            const taskIdToDelete = document.getElementById('current-task-id').value;
-            allTasksData = allTasksData.filter(task => task.id !== parseInt(taskIdToDelete));
-            saveTasksToLocalStorage();
-
-            document.querySelectorAll(`.task-item[data-task-id="${taskIdToDelete}"]`).forEach(el => el.remove());
-
-            alert('Task deleted.');
-            closeTaskDetails();
-            renderMatrixView();
-            renderAllTasksView();
-            renderStickyWall();
+        if (taskIdInput.value) {
+            deleteTask(taskIdInput.value);
+            closeModal();
         }
     });
 
-    const sidebar = document.querySelector('.sidebar');
-    const menuToggle = document.querySelector('.menu-toggle');
-
-    if (menuToggle) {
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
+    // Add Task button listeners (in Matrix)
+    document.querySelectorAll('.add-task').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            isCreatingNewTask = true;
+            newTaskQuadrant = e.target.closest('.quadrant').getAttribute('data-quadrant');
+            taskForm.reset();
+            document.getElementById('task-quadrant').value = newTaskQuadrant;
+            modal.style.display = 'block';
+            deleteTaskBtn.style.display = 'none';
+            taskTitleInput.focus();
         });
+    });
+
+    // View Switching Listeners
+    if (todayMenuItem) {
+        todayMenuItem.addEventListener('click', () => switchView('matrix'));
     }
-
-    // --- TOOLBAR INTERACTION LOGIC (REVISED) ---
-
-    function setActiveTool(toolName) {
-        document.querySelectorAll('.sticky-toolbar .tool-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        const selectedBtn = document.querySelector(`.sticky-toolbar .tool-btn[data-tool="${toolName}"]`);
-        if (selectedBtn) {
-            selectedBtn.classList.add('active');
-            activeTool = toolName;
-        }
-        // Hide all sub-menus and secondary bars when a new main tool is selected
-        stickyNoteColorPicker.classList.remove('show');
-        stampRadialMenu.classList.remove('show');
-        
-        // Hide the secondary drawing toolbar when selecting a non-drawing tool
-        const isDrawingTool = ['washi', 'eraser', 'highlighter', 'marker'].includes(toolName);
-        if (!isDrawingTool) {
-            drawingOptionsToolbar.classList.remove('show');
-        }
+    if (allTasksMenuItem) {
+        allTasksMenuItem.addEventListener('click', () => switchView('all'));
+    }
+    if (stickyWallMenuItem) {
+        stickyWallMenuItem.addEventListener('click', () => switchView('sticky'));
     }
     
-    // Function to handle showing/hiding the drawing options bar
-    function handleDrawingToolClick(toolName) {
-        // 1. Set the main active tool
-        setActiveTool(toolName); 
-
-        // 2. Show the secondary options bar
-        drawingOptionsToolbar.classList.add('show');
-        
-        // 3. Update the tool selector inside the secondary bar (UX improvement)
-        document.querySelectorAll('#drawing-options-toolbar .tool-selection .secondary-tool-btn').forEach(btn => {
-            btn.classList.remove('active');
+    // Add Note Center Button Listener (Used when canvas is empty)
+    if (addNoteCenterBtn) {
+        addNoteCenterBtn.addEventListener('click', (e) => {
+            setActiveTool('sticky-note');
         });
-        document.querySelector(`#drawing-options-toolbar .tool-selection .secondary-tool-btn[data-tool="${toolName}"]`)?.classList.add('active');
-
-        currentDrawingTool = toolName;
-        // console.log(`Current Drawing Tool: ${currentDrawingTool}`);
     }
 
-
-    // 1. Listener for the main drawing tool buttons (Washi, Eraser, Highlighter, Marker)
-    drawingToolTriggers.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tool = btn.getAttribute('data-tool');
-            handleDrawingToolClick(tool);
-        });
-    });
-
-    // 2. Listener for thickness selection in the secondary bar
-    document.querySelector('.thickness-options').addEventListener('click', (e) => {
-        const thicknessBtn = e.target.closest('.secondary-tool-btn[data-thickness]');
-        if (thicknessBtn) {
-            document.querySelectorAll('.thickness-options .secondary-tool-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            thicknessBtn.classList.add('active');
-            currentThickness = thicknessBtn.getAttribute('data-thickness');
-        }
-    });
-
-    // 3. Listener for color/pattern selection in the secondary bar
-    document.querySelector('.color-pattern-options').addEventListener('click', (e) => {
-        const colorSwatch = e.target.closest('.color-swatch-drawing');
-        if (colorSwatch) {
-            document.querySelectorAll('.color-pattern-options .color-swatch-drawing').forEach(swatch => {
-                swatch.classList.remove('active');
-            });
-            colorSwatch.classList.add('active');
-            currentDrawingColor = colorSwatch.getAttribute('data-color');
-        }
-    });
-
-
-    // Event listener for all main toolbar buttons (excluding drawing triggers)
-    document.querySelectorAll('.sticky-toolbar .tool-btn:not(.drawing-tool-trigger)').forEach(btn => {
+    // --- Toolbar Event Listeners ---
+    document.querySelectorAll('.sticky-toolbar .tool-btn[data-tool]').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const tool = btn.getAttribute('data-tool');
+            const tool = e.currentTarget.getAttribute('data-tool');
             
-            // Toggle specific sub-menus (Sticky Note and Stamp)
+            // Toggle sub-menu visibility for Sticky Note
             if (tool === 'sticky-note') {
-                e.stopPropagation(); 
-                stickyNoteColorPicker.classList.toggle('show');
-                stampRadialMenu.classList.remove('show'); 
-                drawingOptionsToolbar.classList.remove('show'); // Hide drawing options
+                if (stickyNoteColorPicker.classList.contains('show')) {
+                     stickyNoteColorPicker.classList.remove('show');
+                     setActiveTool('select'); 
+                } else {
+                     setActiveTool('sticky-note'); 
+                     stickyNoteColorPicker.classList.add('show');
+                     stampRadialMenu.classList.remove('show'); 
+                }
             } else if (tool === 'stamp') {
-                e.stopPropagation();
-                stampRadialMenu.classList.toggle('show');
-                stickyNoteColorPicker.classList.remove('show'); 
-                drawingOptionsToolbar.classList.remove('show'); // Hide drawing options
-                positionRadialMenuItems(); 
+                // Toggle the stamp radial menu
+                 if (stampRadialMenu.classList.contains('show')) {
+                     stampRadialMenu.classList.remove('show');
+                     setActiveTool('select');
+                } else {
+                     setActiveTool('select'); 
+                     stampRadialMenu.classList.add('show');
+                     stickyNoteColorPicker.classList.remove('show'); 
+                }
+            } else if (tool === 'drawing') {
+                // Activate the drawing tool, which shows the secondary drawing toolbar
+                setActiveTool('marker'); // Default to marker when selecting drawing
             } else {
-                setActiveTool(tool); // Select or Hand
+                // For 'select' and 'hand'
+                setActiveTool(tool);
             }
         });
     });
 
-    // Color picker functionality
-    stickyNoteColorPicker.addEventListener('click', (e) => {
-        const colorSwatch = e.target.closest('.color-swatch');
-        if (colorSwatch) {
-            document.querySelectorAll('#sticky-note-color-picker .color-swatch').forEach(swatch => {
-                swatch.classList.remove('active');
-            });
-            colorSwatch.classList.add('active');
-            currentStickyNoteColor = colorSwatch.getAttribute('data-color');
-            stickyNoteColorPicker.classList.remove('show'); 
-            setActiveTool('sticky-note'); 
-        }
-    });
-
-    // Stamp radial menu functionality
-    stampRadialMenu.addEventListener('click', (e) => {
-        const radialItem = e.target.closest('.radial-item');
-        if (radialItem) {
-            currentStampIcon = radialItem.innerHTML; 
-            radialCenter.innerHTML = currentStampIcon; 
-            stampRadialMenu.classList.remove('show'); 
-            setActiveTool('stamp'); 
-        }
-    });
-
-    // Close sub-menus if clicking outside
-    document.addEventListener('click', (e) => {
-        const stickyNoteBtnElement = document.querySelector('.sticky-note-tool');
-        if (stickyNoteColorPicker && stickyNoteBtnElement && !stickyNoteColorPicker.contains(e.target) && !stickyNoteBtnElement.contains(e.target)) {
-            stickyNoteColorPicker.classList.remove('show');
-        }
-        
-        const stampBtnElement = document.querySelector('.stamp-tool');
-        if (stampRadialMenu && stampBtnElement && !stampRadialMenu.contains(e.target) && !stampBtnElement.contains(e.target)) {
-            stampRadialMenu.classList.remove('show');
-        }
-        
-        // Logic for hiding the Drawing Options Toolbar
-        const drawingToolsSection = document.querySelector('.drawing-tools-section');
-        const drawingToolTriggerClicked = e.target.closest('.drawing-tool-trigger');
-        
-        // Hide the drawing options bar if click is outside of the options bar AND outside of the main drawing tool buttons
-        if (drawingOptionsToolbar.classList.contains('show') && 
-            !drawingOptionsToolbar.contains(e.target) && 
-            !drawingToolTriggerClicked) {
-            
-            // If the active tool is a drawing tool, we don't deactivate it, just hide the options
-            // If the click was on another non-drawing tool, setActiveTool already hid this bar.
-            drawingOptionsToolbar.classList.remove('show');
-        }
-    });
-
-    // Function to dynamically position radial menu items
-    function positionRadialMenuItems() {
-        const items = document.querySelectorAll('#stamp-radial-menu .radial-item');
-        const numItems = items.length;
-        const radius = 70; 
-        const centerX = stampRadialMenu.offsetWidth / 2;
-        const centerY = stampRadialMenu.offsetHeight / 2;
-
-        items.forEach((item, index) => {
-            const angle = (index / numItems) * 2 * Math.PI - (Math.PI / 2); 
-            
-            const x = centerX + radius * Math.cos(angle) - item.offsetWidth / 2;
-            const y = centerY + radius * Math.sin(angle) - item.offsetHeight / 2;
-            
-            item.style.left = `${x}px`;
-            item.style.top = `${y}px`;
+    // Secondary drawing toolbar listeners (for Marker, Highlighter, Eraser)
+    document.querySelectorAll('#drawing-options-toolbar .tool-btn[data-tool]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            setActiveTool(e.currentTarget.getAttribute('data-tool'));
         });
-    }
+    });
+    
+    // Drawing Color Selection
+    document.querySelectorAll('#drawing-options-toolbar .color-swatch-drawing').forEach(swatch => {
+        swatch.addEventListener('click', (e) => {
+            document.querySelectorAll('#drawing-options-toolbar .color-swatch-drawing').forEach(s => s.classList.remove('active'));
+            const color = e.target.getAttribute('data-color');
+            e.target.classList.add('active');
+            currentDrawingColor = color; 
+            
+            // Keep the current drawing tool active
+            if (activeTool === 'marker' || activeTool === 'highlighter' || activeTool === 'eraser') {
+                setActiveTool(activeTool);
+            } else {
+                 // Should not happen, but default to marker if drawing tool is active
+                 setActiveTool('marker');
+            }
+        });
+    });
+
+    // Sticky Note Color Picker Listeners
+    document.addEventListener('click', (e) => {
+         if (e.target.closest('#sticky-note-color-picker') && e.target.classList.contains('color-swatch')) {
+            document.querySelectorAll('#sticky-note-color-picker .color-swatch').forEach(s => s.classList.remove('active'));
+            const color = e.target.getAttribute('data-color');
+            e.target.classList.add('active');
+            currentStickyNoteColor = color;
+            
+            setActiveTool('sticky-note'); 
+            stickyNoteColorPicker.classList.add('show');
+         }
+    });
+
+    // Window Resize Listener (important for dynamic canvas size)
+    window.addEventListener('resize', () => {
+        if (document.getElementById('sticky-wall-container').style.display !== 'none') {
+            resizeCanvas();
+        }
+    });
 
 
     // --- Initial Load ---
@@ -753,14 +893,34 @@ document.addEventListener('DOMContentLoaded', () => {
         allTasksData = allTasksData.map(task => ({
              ...task,
              completedDate: task.completedDate !== undefined ? task.completedDate : (task.completed ? task.date : null),
-             stickyNoteColor: task.stickyNoteColor !== undefined ? task.stickyNoteColor : 'yellow' 
+             stickyNoteColor: task.stickyNoteColor !== undefined ? task.stickyNoteColor : 'white',
+             quadrant: task.quadrant !== undefined ? task.quadrant : (task.canvasX === undefined && task.canvasY === undefined ? 'do' : undefined),
+             canvasX: task.canvasX !== undefined ? task.canvasX : undefined, 
+             canvasY: task.canvasY !== undefined ? task.canvasY : undefined  
         }));
 
         const maxId = Math.max(...allTasksData.map(task => task.id));
         taskIdCounter = maxId + 1;
     }
     
-    // Set initial view and active tool
-    switchView('matrix');
-    setActiveTool('select'); 
+    // Populate and set initial active color for sticky note picker
+    if(stickyNoteColorPicker) {
+        stickyNoteColorPicker.innerHTML = ''; // Clear placeholders
+        Object.keys(STICKY_NOTE_BG_COLORS).forEach(color => {
+            const swatch = document.createElement('div');
+            swatch.className = 'color-swatch';
+            swatch.setAttribute('data-color', color);
+            swatch.style.backgroundColor = STICKY_NOTE_BG_COLORS[color];
+            if (color === currentStickyNoteColor) {
+                swatch.classList.add('active');
+            }
+            stickyNoteColorPicker.appendChild(swatch);
+        });
+    }
+
+    // Initial render and view set
+    renderMatrixView();
+    renderAllTasksView();
+    switchView('matrix'); // Start with the matrix view by default
+    setActiveTool('select'); // Default active tool on sticky wall
 });
