@@ -27,7 +27,7 @@
                     <li class="task-item active"><i class="fas fa-list-ul"></i> Today <span class="count">5</span></li>
                     <li class="task-item" id="all-tasks-menu-item"><i class="fas fa-tasks"></i> All Tasks</li>
                     <li class="task-item"><i class="fas fa-calendar-alt"></i> Calendar</li>
-                    <li class="task-item"><i class="fas fa-sticky-note"></i> Sticky Wall</li>
+                    <li class="task-item" id="sticky-wall-menu-item"><i class="fas fa-sticky-note"></i> Sticky Wall</li>
                 </ul>
 
                 <p class="section-title">LISTS</p>
@@ -54,7 +54,8 @@
 
         <main class="matrix-main">
             <div id="matrix-container">
-                <h1>Eisenhower Matrix</h1>
+                <h1 id="main-greeting">Hi, User!</h1>
+                <div id="editable-quote" contenteditable="true" placeholder="Enter a short quote or thought...">Empty quote</div>
                 <div class="matrix-grid">
                     <div class="matrix-label-v">Important</div>
                     <div class="matrix-label-h urgent-label">Urgent</div>
@@ -105,6 +106,129 @@
                 <ul id="all-tasks-list" class="task-list all-list-view">
                     </ul>
             </div>
+
+            <div id="sticky-wall-container" style="display:none;">
+                <h1>Sticky Wall Board</h1>
+                <div id="sticky-canvas-board" class="sticky-canvas-board">
+                    
+                    <div class="board-column" data-quadrant="do">
+                        <h2 class="do-header"><i class="fas fa-check-circle"></i> DO (Urgent & Important)</h2>
+                        <ul class="board-task-list do-list"></ul>
+                        <li class="add-task-board"><i class="fas fa-plus"></i> Add New Task</li>
+                    </div>
+
+                    <div class="board-column" data-quadrant="schedule">
+                        <h2 class="schedule-header"><i class="fas fa-clock"></i> SCHEDULE (Important)</h2>
+                        <ul class="board-task-list schedule-list"></ul>
+                        <li class="add-task-board"><i class="fas fa-plus"></i> Add New Task</li>
+                    </div>
+
+                    <div class="board-column" data-quadrant="delegate">
+                        <h2 class="delegate-header"><i class="fas fa-tasks"></i> DELEGATE (Urgent)</h2>
+                        <ul class="board-task-list delegate-list"></ul>
+                        <li class="add-task-board"><i class="fas fa-plus"></i> Add New Task</li>
+                    </div>
+
+                    <div class="board-column" data-quadrant="delete">
+                        <h2 class="delete-header"><i class="fas fa-times-circle"></i> DELETE (Not Important)</h2>
+                        <ul class="board-task-list delete-list"></ul>
+                        <li class="add-task-board"><i class="fas fa-plus"></i> Add New Task</li>
+                    </div>
+
+                </div>
+
+                <div id="sticky-toolbar-container">
+                    
+                    <div id="drawing-options-toolbar" class="secondary-toolbar">
+                        
+                        <div class="tool-group tool-selection">
+                            <button class="tool-btn secondary-tool-btn" data-tool="marker"><i class="fas fa-pen-alt"></i></button> 
+                            <button class="tool-btn secondary-tool-btn" data-tool="highlighter"><i class="fas fa-highlighter"></i></button>
+                            <button class="tool-btn secondary-tool-btn" data-tool="eraser"><i class="fas fa-eraser"></i></button>
+                            <button class="tool-btn secondary-tool-btn active" data-tool="washi"><i class="fas fa-tape"></i></button>
+                        </div>
+                        
+                        <div class="tool-group thickness-options">
+                            <button class="tool-btn secondary-tool-btn active" data-thickness="thin"><i class="fas fa-pencil-alt"></i></button>
+                            <button class="tool-btn secondary-tool-btn" data-thickness="thick"><i class="fas fa-grip-lines"></i></button>
+                        </div>
+                        
+                        <div class="tool-group color-pattern-options">
+                            <div class="color-swatch-drawing active" data-color="black"></div>
+                            <div class="color-swatch-drawing" data-color="yellow"></div>
+                            <div class="color-swatch-drawing" data-color="red"></div>
+                            <div class="color-swatch-drawing" data-color="blue-pattern"></div>
+                            <div class="color-swatch-drawing" data-color="green-stripes"></div>
+                            <div class="color-swatch-drawing" data-color="dark-blue"></div>
+                            <div class="color-swatch-drawing" data-color="pink-dots"></div>
+                            <button class="tool-btn secondary-tool-btn add-drawing-color"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="sticky-toolbar">
+                        
+                        <div class="toolbar-section">
+                            <button class="tool-btn active" data-tool="select"><i class="fas fa-mouse-pointer"></i></button>
+                            <button class="tool-btn" data-tool="hand"><i class="fas fa-hand-paper"></i></button>
+                        </div>
+
+                        <div class="toolbar-section drawing-tools-section">
+                            
+                            <div class="tool-group drawing-tool-triggers">
+                                <button class="tool-btn drawing-tool-trigger" data-tool="washi"><i class="fas fa-tape"></i></button> 
+                                <button class="tool-btn drawing-tool-trigger" data-tool="eraser"><i class="fas fa-eraser"></i></button>
+                                <button class="tool-btn drawing-tool-trigger" data-tool="highlighter"><i class="fas fa-highlighter"></i></button>
+                                <button class="tool-btn drawing-tool-trigger" data-tool="marker"><i class="fas fa-pen-alt"></i></button>
+                            </div>
+                            
+                            <div class="tool-group">
+                                <button class="tool-btn sticky-note-tool" data-tool="sticky-note">
+                                    <i class="fas fa-sticky-note"></i>
+                                </button>
+                                
+                                <div id="sticky-note-color-picker" class="color-picker-palette">
+                                    <div class="color-swatch active" data-color="yellow"></div>
+                                    <div class="color-swatch" data-color="white"></div>
+                                    <div class="color-swatch" data-color="pink"></div>
+                                    <div class="color-swatch" data-color="orange"></div>
+                                    <div class="color-swatch" data-color="green"></div>
+                                    <div class="color-swatch" data-color="light-blue"></div>
+                                    <div class="color-swatch" data-color="purple"></div>
+                                    <div class="color-swatch" data-color="red"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="toolbar-section">
+                            <button class="tool-btn" data-tool="text"><i class="fas fa-font"></i></button>
+                            <button class="tool-btn" data-tool="table"><i class="fas fa-table"></i></button>
+                            
+                            <div class="tool-group">
+                                <button class="tool-btn stamp-tool" data-tool="stamp">
+                                    <i class="fas fa-stamp"></i>
+                                </button>
+                                
+                                <div id="stamp-radial-menu" class="radial-menu">
+                                    <div class="radial-item" data-stamp="heart"><i class="fas fa-heart"></i></div>
+                                    <div class="radial-item" data-stamp="thumbs-up"><i class="fas fa-thumbs-up"></i></div>
+                                    <div class="radial-item" data-stamp="plus-one"><i class="fas fa-plus"></i>1</div>
+                                    <div class="radial-item" data-stamp="star"><i class="fas fa-star"></i></div>
+                                    <div class="radial-item" data-stamp="question"><i class="fas fa-question"></i></div>
+                                    <div class="radial-item" data-stamp="thumbs-down"><i class="fas fa-thumbs-down"></i></div>
+                                    <div class="radial-item" data-stamp="dot"><div class="dot-stamp"></div></div>
+                                    <div class="radial-item" data-stamp="person"><i class="fas fa-user"></i></div>
+                                    <div class="radial-item" data-stamp="smiley"><i class="fas fa-smile"></i></div>
+                                    
+                                    <div class="radial-center"><i class="fas fa-user"></i></div> 
+                                </div>
+                            </div>
+                            <button class="tool-btn" data-tool="add-element"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+
         </main>
     </div>
 

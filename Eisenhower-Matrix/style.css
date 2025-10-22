@@ -557,3 +557,453 @@ body {
     border: 1px solid #eee;
     margin-bottom: 8px;
 }
+
+/* -------------------- Main Header & Quote -------------------- */
+#main-greeting {
+    font-size: 2.2em;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+#editable-quote {
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    background-color: #fff;
+    border-left: 4px solid #1890ff; /* Similar to your example image */
+    font-style: italic;
+    color: #555;
+    min-height: 40px; /* Ensure it's visible even when empty */
+    line-height: 1.5;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-radius: 4px;
+    outline: none; /* Remove default focus outline */
+}
+
+#editable-quote:empty:before {
+    content: attr(placeholder);
+    color: #aaa;
+    /* Make sure placeholder text doesn't get copied */
+    pointer-events: none;
+    display: block; 
+}
+
+#editable-quote:focus {
+    border-color: #0056b3; /* Darker blue on focus */
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* ADD THIS TO YOUR style.css (or replace the previous Sticky Wall styles) */
+
+/* Sticky Wall Container */
+#sticky-wall-container {
+    padding: 30px;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+#sticky-wall-container h1 {
+    margin-bottom: 20px;
+}
+
+.sticky-canvas-board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    flex-grow: 1;
+    overflow-x: auto; /* Allow horizontal scrolling if needed */
+    padding-bottom: 20px; /* Space for scrollbar */
+}
+
+.board-column {
+    background-color: #f0f0f0;
+    border-radius: 10px;
+    padding: 15px;
+    min-width: 250px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.board-column.drag-over {
+    background-color: #e0e0e0;
+}
+
+.board-column h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 15px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+}
+
+.board-column h2 i {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.board-task-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto; /* Task list can scroll vertically */
+    flex-grow: 1;
+    min-height: 10px; /* Ensure space for drag-drop */
+}
+
+/* Task Item Styling for Board */
+.sticky-note-card {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: grab;
+    transition: box-shadow 0.1s;
+    border-left: 5px solid; /* Use for quadrant color coding */
+    display: block;
+    font-size: 14px;
+}
+
+.sticky-note-card:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.sticky-note-card h4 {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.sticky-note-card p {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
+    height: 30px;
+    overflow: hidden;
+    /* Multiline ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 2; 
+    -webkit-box-orient: vertical;
+}
+
+.card-date {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    color: #999;
+}
+
+/* Quadrant-based Card Colors */
+.sticky-note-card.do-color { border-left-color: #52c41a; }
+.sticky-note-card.schedule-color { border-left-color: #9254de; }
+.sticky-note-card.delegate-color { border-left-color: #1890ff; }
+.sticky-note-card.delete-color { border-left-color: #f5222d; }
+
+.sticky-note-card.completed-note {
+    opacity: 0.7;
+    text-decoration: line-through;
+}
+
+/* Add Task Button */
+.add-task-board {
+    list-style: none;
+    background: none;
+    border: 1px dashed #ccc;
+    color: #666;
+    font-style: italic;
+    cursor: pointer;
+    justify-content: center;
+    padding: 10px 15px; 
+    border-radius: 8px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.add-task-board i {
+    margin-right: 5px;
+    color: #666;
+}
+
+/* ADD TO YOUR style.css (after existing sticky wall styles) */
+
+/* Sticky Wall Toolbar Container */
+#sticky-toolbar-container {
+    position: fixed; /* Fixed position relative to viewport */
+    bottom: 20px; /* 20px from the bottom */
+    left: 50%;
+    transform: translateX(-50%); /* Center horizontally */
+    z-index: 1000; /* Ensure it's above other content */
+    display: none; /* Hidden by default, shown when on Sticky Wall */
+}
+
+.sticky-toolbar {
+    display: flex;
+    background-color: #fff;
+    border-radius: 12px;
+    padding: 8px 15px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    gap: 15px; /* Space between main sections */
+    align-items: center;
+}
+
+.toolbar-section {
+    display: flex;
+    gap: 5px; /* Space between buttons within a section */
+    border-right: 1px solid #eee; /* Separator between sections */
+    padding-right: 15px;
+}
+
+.toolbar-section:last-child {
+    border-right: none; /* No separator for the last section */
+    padding-right: 0;
+}
+
+.tool-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.tool-btn {
+    background-color: transparent;
+    border: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    color: #555;
+    transition: background-color 0.2s, color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px; /* Ensure uniform size */
+    min-height: 40px;
+}
+
+.tool-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.tool-btn.active {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+/* Specific icon styles if needed */
+.tool-btn img {
+    height: 24px;
+    width: 24px;
+    object-fit: contain;
+}
+
+/* Sticky Note Tool Options (Color Picker) */
+#sticky-note-color-picker {
+    position: absolute;
+    bottom: calc(100% + 10px); /* Position above the tool button */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #fff;
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    padding: 8px;
+    display: flex; /* Arranges colors in a row */
+    gap: 6px;
+    white-space: nowrap; /* Keep colors in one line */
+    z-index: 1001; /* Above toolbar */
+    display: none; /* Hidden by default */
+}
+
+#sticky-note-color-picker.show {
+    display: flex;
+}
+
+.color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+    flex-shrink: 0; /* Prevent shrinking in flex container */
+}
+
+.color-swatch:hover {
+    border-color: #ccc;
+}
+
+.color-swatch.active {
+    border-color: #6a0dad; /* Purple border for active */
+    box-shadow: 0 0 0 2px #9370DB; /* Lighter purple glow */
+}
+
+/* Color definitions for swatches */
+.color-swatch[data-color="yellow"] { background-color: #fcfc88; }
+.color-swatch[data-color="white"] { background-color: #ffffff; border: 1px solid #ddd; } /* Add border to white */
+.color-swatch[data-color="pink"] { background-color: #ffb6c1; }
+.color-swatch[data-color="orange"] { background-color: #ffaf4d; }
+.color-swatch[data-color="green"] { background-color: #a8e0b6; }
+.color-swatch[data-color="light-blue"] { background-color: #a7c8e7; }
+.color-swatch[data-color="purple"] { background-color: #d4a9d4; }
+.color-swatch[data-color="red"] { background-color: #e7a7a7; }
+
+
+/* Stamp Radial Menu */
+#stamp-radial-menu {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px; /* Diameter of the circle */
+    height: 200px;
+    background-color: #fff;
+    border-radius: 50%;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    display: none; /* Hidden by default */
+    z-index: 1001;
+}
+
+#stamp-radial-menu.show {
+    display: block;
+}
+
+.radial-item {
+    position: absolute;
+    width: 40px; /* Size of each stamp icon */
+    height: 40px;
+    background-color: #f0f0f0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    color: #555;
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+.radial-item:hover {
+    background-color: #e0e0e0;
+    transform: scale(1.1);
+}
+
+.radial-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px; /* Size of the center circle */
+    height: 60px;
+    background-color: #6a0dad; /* Purple background for center */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Positioning for radial items (JavaScript will calculate this more dynamically) */
+/* For demonstration, hardcode a few positions */
+/* This is more complex to do purely in CSS for a perfect circle distribution */
+/* JS will calculate the positions for an even distribution */
+/* Example for 9 items (as in Figma): */
+/*
+.radial-item[data-stamp="heart"] { top: 10%; left: 30%; }
+.radial-item[data-stamp="thumbs-up"] { top: 15%; left: 60%; }
+.radial-item[data-stamp="plus-one"] { top: 30%; left: 80%; }
+.radial-item[data-stamp="star"] { top: 60%; left: 80%; }
+.radial-item[data-stamp="question"] { top: 80%; left: 60%; }
+.radial-item[data-stamp="thumbs-down"] { top: 85%; left: 30%; }
+.radial-item[data-stamp="dot"] { top: 60%; left: 10%; }
+.radial-item[data-stamp="person"] { top: 30%; left: 10%; }
+.radial-item[data-stamp="smiley"] { top: 10%; left: 45%; } 
+*/
+
+/* --- New Secondary Toolbar for Drawing Options --- */
+
+/* Parent for absolute positioning */
+#sticky-toolbar-container {
+    position: fixed;
+    /* ... other styles remain ... */
+}
+
+.secondary-toolbar {
+    position: absolute;
+    bottom: calc(100% + 15px); /* Position 15px above the main toolbar */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #fff;
+    border-radius: 12px;
+    padding: 8px 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 1002; /* Ensure it's above the main toolbar and sub-menus */
+    
+    /* Initially hidden */
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s, visibility 0.2s;
+}
+
+.secondary-toolbar.show {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Tool Groups within the secondary bar */
+.secondary-toolbar .tool-group {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.secondary-toolbar .tool-selection {
+    border-right: 1px solid #eee;
+    padding-right: 15px;
+}
+.secondary-toolbar .thickness-options {
+    border-right: 1px solid #eee;
+    padding-right: 15px;
+}
+
+/* Custom drawing color swatches (round buttons with color/pattern) */
+.color-swatch-drawing {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+    flex-shrink: 0;
+}
+
+.color-swatch-drawing:hover {
+    border-color: #ccc;
+}
+
+.color-swatch-drawing.active {
+    border-color: #6a0dad; 
+    box-shadow: 0 0 0 2px #9370DB; 
+}
+
+/* Define some placeholder colors/patterns */
+.color-swatch-drawing[data-color="black"] { background-color: #333; }
+.color-swatch-drawing[data-color="pink"] { background-color: #ffb6c1; }
+.color-swatch-drawing[data-color="blue-pattern"] { 
+    /* Placeholder for a pattern effect */
+    background-color: #87CEEB; 
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255, 255, 255, 0.5) 5px, rgba(255, 255, 255, 0.5) 10px);
+}
+.color-swatch-drawing[data-color="green-stripes"] { 
+    /* Placeholder for green stripes/tape */
+    background: repeating-linear-gradient(45deg, #a8e0b6, #a8e0b6 10px, #7bb98b 10px, #7bb98b 20px);
+}
