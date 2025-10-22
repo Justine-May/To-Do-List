@@ -1,524 +1,535 @@
-/* --- New Global Structure --- */
-:root {
-    --primary-color: #3498db; /* Blue */
-    --secondary-color: #2c3e50; /* Dark Blue */
-    --accent-color: #f39c12; /* Yellow/Orange for Save */
-    --delete-color: #e74c3c;
-    --bg-color: #f4f7f6; /* Light gray background */
-    --nav-bg: #fff;
-    --border-color: #e0e0e0;
-    --nav-width: 250px; 
-    --details-width: 400px; 
-    --mobile-header-height: 60px; /* NEW: Define a height for the sticky header */
-}
-
+/* Basic Reset and Global Styles */
 body {
-    font-family: Arial, sans-serif;
-    background-color: var(--bg-color);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
     margin: 0;
     padding: 0;
+    background-color: #f5f6f8;
+    color: #333;
+    display: flex;
 }
 
 .app-container {
-    display: grid;
-    /* Nav (fixed 250px) | Main (grows 1fr) | Details (fixed 400px) */
-    grid-template-columns: var(--nav-width) 1fr var(--details-width); 
-    max-width: 1400px;
-    margin: 0 auto;
-    min-height: 100vh;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* -------------------- Sidebar Styling -------------------- */
+.sidebar {
+    width: 250px;
     background-color: #fff;
-    overflow: hidden;
+    padding: 20px 15px;
+    border-right: 1px solid #eee;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
 }
 
-/* Add a style for the task item to prevent overflow on small screens */
-.task-info-tags {
+.menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.menu-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.menu-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #333;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    background-color: #f0f0f0;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 20px;
+}
+
+.search-box i {
+    margin-right: 8px;
+    color: #888;
+}
+
+.search-box input {
+    border: none;
+    background: transparent;
+    flex-grow: 1;
+    outline: none;
+    font-size: 14px;
+}
+
+.section-title {
+    font-weight: 600;
+    color: #888;
+    margin: 15px 0 5px;
+    padding: 0 10px;
     font-size: 12px;
-    color: #777;
-    margin-left: 15px;
-    /* NEW: Prevent info tags from wrapping awkwardly */
-    white-space: nowrap; 
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-/* --- Navigation Panel (LEFT) --- */
-.nav-panel {
-    background-color: var(--nav-bg);
-    border-right: 1px solid var(--border-color);
-    padding: 20px 0;
+.menu-sections ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.task-item, .list-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    margin-bottom: 2px;
+}
+
+.task-item:hover, .list-item:hover {
+    background-color: #f0f0f0;
+}
+
+.task-item i {
+    margin-right: 10px;
+    width: 16px;
+    text-align: center;
+}
+
+.task-item.active {
+    background-color: #e6f7ff; /* Light blue background for active */
+    font-weight: 600;
+    color: #1890ff;
+}
+
+.count {
+    margin-left: auto;
+    background-color: #eee;
+    color: #666;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.color-dot.personal { background-color: #f5222d; } /* Red */
+.color-dot.work { background-color: #1890ff; } /* Blue */
+.color-dot.list1 { background-color: #ffc53d; } /* Yellow */
+
+.add-list {
+    color: #666;
+    font-style: italic;
+}
+
+/* Tags Styling */
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0 10px;
+}
+
+.tag {
+    padding: 5px 10px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.tag-1 { background-color: #e6fffb; color: #008778; border: 1px solid #b5f5ec; }
+.tag-2 { background-color: #fff1f0; color: #cf1322; border: 1px solid #ffccc7; }
+.add-tag { background: none; color: #666; border: 1px dashed #ccc; }
+
+.menu-footer {
+    margin-top: auto;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.footer-item {
+    padding: 10px;
+    cursor: pointer;
+    color: #666;
+}
+
+.footer-item i {
+    margin-right: 10px;
+}
+
+
+/* -------------------- Matrix Styling -------------------- */
+.matrix-main {
+    flex-grow: 1;
+    padding: 30px;
+}
+
+.matrix-main h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.matrix-grid {
+    display: grid;
+    /* 3 columns: V-label, Urgent, Not Urgent */
+    /* 3 rows: H-label, Important, Not Important */
+    grid-template-columns: 120px 1fr 1fr;
+    grid-template-rows: 60px 1fr 1fr;
+    gap: 15px; /* Increased gap for better spacing */
+    height: calc(100vh - 120px); 
+}
+
+/* Labels */
+.matrix-label-v {
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+    font-weight: 600;
+    color: #555;
+    font-size: 16px;
+}
+
+.matrix-label-h {
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #555;
+    font-size: 16px;
+}
+
+.matrix-label-v:nth-child(2) { 
+    grid-row: 2;
+}
+
+.matrix-label-v:nth-child(4) { 
+    grid-row: 3;
+}
+
+/* Quadrant Positioning */
+.do { grid-area: 2 / 2 / 3 / 3; }
+.schedule { grid-area: 2 / 3 / 3 / 4; }
+.delegate { grid-area: 3 / 2 / 4 / 3; }
+.delete { grid-area: 3 / 3 / 4 / 4; }
+
+/* Quadrant Styling */
+.quadrant {
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    overflow: auto; /* Allow scrolling if many tasks */
+    position: relative;
     display: flex;
     flex-direction: column;
 }
 
-.menu-header {
-    font-size: 24px;
-    font-weight: bold;
-    color: var(--secondary-color);
-    padding: 0 20px 10px 20px;
-    margin-bottom: 10px;
-}
+/* Quadrant Colors */
+.do { background-color: #e9f7ef; border: 1px solid #a8e0b6; }
+.schedule { background-color: #f7eff7; border: 1px solid #d4a9d4; }
+.delegate { background-color: #eff6fb; border: 1px solid #a7c8e7; }
+.delete { background-color: #f9f0f0; border: 1px solid #e7a7a7; }
 
-.menu-search {
-    padding: 0 20px 15px 20px;
-}
-
-#menu-search-input {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    box-sizing: border-box;
-}
-
-.menu-section-title {
-    font-size: 11px;
-    font-weight: bold;
-    color: #999;
-    padding: 10px 20px 5px 20px;
-    text-transform: uppercase;
-}
-
-.menu-item {
+.quadrant-header {
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 15px;
+    padding: 5px 0;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 8px 20px;
-    cursor: pointer;
-    font-size: 14px;
-    color: var(--secondary-color);
-    transition: background-color 0.1s;
 }
 
-.menu-item .icon {
+.quadrant-header i {
+    margin-right: 8px;
+    font-size: 20px;
+}
+
+/* Quadrant Header Specific Colors */
+.do-header { color: #52c41a; }
+.schedule-header { color: #9254de; }
+.delegate-header { color: #1890ff; }
+.delete-header { color: #f5222d; }
+
+
+/* Task List Styling */
+.task-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Task Item Styling for Matrix - adjusted padding to be larger */
+.task-list > .task-item {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 12px 15px; 
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.1s;
+    cursor: pointer; /* To indicate it's clickable for details */
+}
+
+.task-list > .task-item:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.task-list > .task-item i {
+    color: #52c41a; 
     margin-right: 10px;
 }
 
-.menu-item:hover {
-    background-color: var(--bg-color);
-}
-
-.active-menu-item {
-    background-color: var(--primary-color);
-    color: white;
-    font-weight: bold;
-}
-
-.active-menu-item:hover {
-    background-color: var(--primary-color);
-}
-
-.task-count {
-    background-color: var(--bg-color);
-    color: var(--secondary-color);
-    padding: 2px 8px;
-    border-radius: 4px;
+.task-date {
+    margin-left: auto;
     font-size: 12px;
+    color: #888;
+    margin-right: 10px;
 }
 
-.active-menu-item .task-count {
-    background-color: rgba(255, 255, 255, 0.2);
-    color: white;
-}
-
-.menu-footer {
-    margin-top: auto; 
-    padding-top: 15px;
-    border-top: 1px solid var(--border-color);
-}
-
-
-/* --- Main Content (CENTER) --- */
-.main-content {
-    padding: 30px 40px;
-    background-color: #fff;
-}
-
-.auth-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 20px;
-    /* Remove border bottom for a cleaner look */
-    margin-bottom: 0;
-}
-
-h1 {
-    display: flex;
-    align-items: baseline;
-    font-size: 32px;
-    color: var(--secondary-color);
-    margin-top: 10px;
-    margin-bottom: 25px;
-}
-
-.header-count {
-    font-size: 24px;
-    color: #999;
-    font-weight: normal;
-    margin-left: 10px;
-}
-
-.input-group.add-task-group {
-    display: flex;
-    align-items: center;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    margin-bottom: 25px;
-}
-
-.add-task-icon {
-    font-size: 20px;
-    color: var(--primary-color);
-    padding: 0 10px;
-}
-
-#new-task-title {
-    flex-grow: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 0 5px 5px 0;
-    font-size: 16px;
-}
-
-/* Task List Styling */
-#task-list {
-    list-style: none;
-    padding: 0;
-}
-
-.task-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 0;
-    margin-bottom: 0;
-    background-color: transparent;
-    border-bottom: 1px solid var(--border-color);
-    cursor: pointer;
-    transition: background-color 0.1s;
-}
-
-.task-item:hover {
-    background-color: #f7f7f7;
-}
-
-.task-item.active {
-    background-color: #f0f0f0;
-}
-
-.task-main-details {
-    display: flex;
-    align-items: center;
-    flex-grow: 1;
-}
-
-.task-main-details input[type="checkbox"] {
-    margin-right: 15px;
-    width: 20px;
-    height: 20px;
+.task-list > .task-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
     cursor: pointer;
 }
 
-.task-text {
-    flex-grow: 1;
-    font-size: 16px;
+.add-task {
+    background: none;
+    border: 1px dashed #ccc;
+    color: #666;
+    font-style: italic;
+    cursor: pointer;
+    justify-content: center;
+    padding: 10px 15px; /* Keep consistent padding */
+    border-radius: 8px;
 }
 
-.task-item.completed .task-text {
-    text-decoration: line-through;
-    color: #999;
+.add-task i {
+    margin-right: 5px;
+    color: #666;
 }
 
-.task-info-tags {
-    font-size: 12px;
-    color: #777;
-    margin-left: 15px;
+/* -------------------- Task Details Modal Styling -------------------- */
+
+.modal {
+    display: none; 
+    position: fixed;
+    z-index: 1000; 
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4); 
+    backdrop-filter: blur(3px); 
 }
 
-
-/* --- Task Details Panel (RIGHT) --- */
-.task-details-panel {
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto; 
     padding: 30px;
-    background-color: var(--bg-color); /* Lighter background for the panel */
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%; 
+    max-width: 600px; 
     position: relative;
 }
 
-.close-btn {
-    top: 15px;
-    right: 15px;
-}
-
-#detail-title {
-    font-size: 20px;
-    color: var(--secondary-color);
+.modal-content h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #eee;
     padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 20px;
 }
 
-.detail-section label {
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
     font-weight: bold;
-    font-size: 13px;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #333;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* Form Styling */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
     color: #555;
-}
-
-.detail-section input, .detail-section select, .detail-section textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    box-sizing: border-box;
-}
-
-.detail-section textarea {
-    resize: vertical;
-}
-
-.detail-row {
-    display: flex;
-    gap: 20px;
-}
-
-.detail-col {
-    flex: 1;
-}
-
-/* Tags Styling */
-.tags-section {
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-#detail-tags-display {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 10px 0;
-}
-
-.task-tag {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 5px;
-    font-size: 12px;
-    font-weight: bold;
-    color: white;
-    background-color: #5bc0de; /* Default tag color */
-    cursor: pointer;
-}
-
-.tag-input-group {
-    display: flex;
-    gap: 5px;
-    margin-top: 10px;
-}
-
-.tag-input-group input {
-    flex-grow: 1;
-}
-
-#add-tag-to-task-btn {
-    padding: 8px 10px;
-    border: none;
-    background-color: var(--primary-color);
-    color: white;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-/* Subtask List Styling */
-.subtask-input {
-    margin-bottom: 10px;
-}
-
-#subtask-list {
-    margin-top: 10px;
-}
-
-.subtask-item {
-    justify-content: flex-start;
-    padding: 5px 0;
-    border-bottom: none;
-}
-
-.subtask-text {
     font-size: 14px;
 }
 
-/* Actions Group (Save/Delete) */
-.actions-group {
+.form-group label i {
+    margin-right: 5px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box; 
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    border-color: #1890ff;
+    outline: none;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-row {
     display: flex;
-    justify-content: flex-end; /* Align to the right */
     gap: 15px;
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border-color);
+}
+
+.form-row .half-width {
+    flex: 1;
+}
+
+/* Tags Input Styling */
+.selected-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.selected-tag {
+    background-color: #e6f7ff;
+    color: #1890ff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+}
+
+/* Subtask Styling */
+.subtask-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.subtask-list li {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.subtask-list input[type="text"] {
+    flex-grow: 1;
+    border: 1px solid #f0f0f0;
+    background-color: #f7f7f7;
+    margin-right: 5px;
+}
+
+.add-subtask-btn {
+    background-color: #52c41a;
+    color: white;
+    border: none;
+    padding: 8px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.add-subtask-btn:hover {
+    background-color: #389e0d;
+}
+
+/* Modal Action Buttons */
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn:hover {
+    opacity: 0.9;
 }
 
 .delete-btn {
-    background-color: transparent;
-    color: var(--delete-color);
-    border: none;
-    font-weight: bold;
+    background-color: #fff1f0;
+    color: #f5222d;
+    border: 1px solid #ffccc7;
+    margin-right: auto; 
 }
 
 .save-btn {
-    background-color: var(--accent-color);
+    background-color: #1890ff;
     color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
 }
 
-.hidden {
-    display: none !important;
-}
-/* ---------------------------------------------------------------------- */
-/* ## 1. Tablet and Smaller Desktop Layout (Max-width: 1200px)           */
-/* ---------------------------------------------------------------------- */
+/* -------------------- Drag and Drop Styling -------------------- */
 
-@media (max-width: 1200px) {
-    /* Your CSS for Tablet/Smaller Desktop (2-column layout, details as overlay) */
-    :root {
-        --nav-width: 220px;
-        --details-width: 300px;
-    }
-
-    .app-container {
-        grid-template-columns: var(--nav-width) 1fr;
-        max-width: 100%;
-        box-shadow: none;
-    }
-
-    .task-details-panel {
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        width: var(--details-width);
-        border-left: 1px solid var(--border-color);
-        z-index: 100;
-        transform: translateX(100%);
-        transition: transform 0.3s ease-out;
-    }
-
-    .task-details-panel:not(.hidden) {
-        transform: translateX(0);
-    }
-
-    .main-content {
-        padding: 20px 30px;
-    }
+/* Style for the element being dragged */
+.is-dragging {
+    opacity: 0.4;
+    border: 2px dashed #000;
 }
 
-/* ---------------------------------------------------------------------- */
-/* ## 2. Mobile Layout (Max-width: 768px)                               */
-/* ---------------------------------------------------------------------- */
-
-@media (max-width: 768px) {
-    /* Your CSS for Mobile Layout (Sidebar and Details as full-screen overlays) */
-    
-    .app-container {
-        display: block;
-        min-height: auto;
-    }
-
-    /* Note: You MUST add a new HTML element for '.mobile-header-bar' */
-    .mobile-header-bar {
-        position: sticky;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: var(--mobile-header-height);
-        background-color: var(--nav-bg);
-        border-bottom: 1px solid var(--border-color);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 15px;
-        z-index: 1000;
-    }
-
-    .nav-panel {
-        position: fixed;
-        top: 0; 
-        left: 0;
-        bottom: 0;
-        width: 80%; 
-        border-right: none;
-        z-index: 1000;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease-out;
-        box-shadow: 5px 0 15px rgba(0, 0, 0, 0.2);
-        overflow-y: auto;
-    }
-    
-    .nav-panel.is-open {
-        transform: translateX(0);
-    }
-
-    .main-content {
-        padding: 15px;
-        padding-top: calc(15px + var(--mobile-header-height)); 
-    }
-    
-    h1 {
-        font-size: 24px;
-        margin-bottom: 15px;
-    }
-    
-    .header-count {
-        font-size: 18px;
-    }
-
-    .task-details-panel {
-        width: 100%;
-        transform: translateX(100%);
-        z-index: 2000;
-        background-color: white;
-    }
-}
-
-/* ---------------------------------------------------------------------- */
-/* ## 3. Extra Mobile Adjustments (All Sections)                         */
-/* ---------------------------------------------------------------------- */
-
-@media (max-width: 768px) {
-    /* These rules ensure elements fit better and are easier to tap */
-    
-    .menu-item {
-        padding: 12px 15px;
-    }
-    
-    .task-item {
-        padding: 15px 5px;
-    }
-
-    .task-main-details input[type="checkbox"] {
-        width: 24px;
-        height: 24px;
-    }
-
-    .task-info-tags {
-        display: none; /* Hide extraneous info tags in the list to save space */
-    }
-
-    .detail-row {
-        flex-direction: column;
-        gap: 15px;
-    }
-
-    .actions-group {
-        margin-top: 20px;
-        padding-top: 15px;
-    }
-
-    .delete-btn, .save-btn {
-        flex-grow: 1;
-        padding: 12px;
-        font-size: 16px;
-    }
+/* Style for the quadrant when a task is hovered over it */
+.drag-over {
+    border: 2px dashed #1890ff; /* Highlight border */
+    background-color: rgba(24, 144, 255, 0.1); /* Slight blue background overlay */
 }

@@ -3,137 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>To-Do List App</title>
+    <title>Eisenhower Matrix App</title>
     <link rel="stylesheet" href="style.css">
-    
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-
     <div class="app-container">
-        <div class="nav-panel">
-            <div class="menu-header">Menu</div>
-            
-            <div class="menu-search">
-                <input type="text" id="menu-search-input" placeholder="Q Search">
+        <aside class="sidebar">
+            <div class="menu-header">
+                <h2>Menu</h2>
+                <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+            </div>
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search">
             </div>
 
-            <div class="menu-section-title">TASKS</div>
-            
-            <div class="menu-item" id="upcoming-filter-btn">
-                » Upcoming
-                <span class="task-count" id="upcoming-task-count">0</span>
-            </div>
-            <div class="menu-item active-menu-item" id="today-filter-btn">
-                <span class="icon">📅</span> Today 
-                <span class="task-count" id="today-task-count">0</span>
-            </div>
-            <div class="menu-item" id="all-tasks-filter-btn">
-                <span class="icon">📋</span> All Tasks
-            </div>
+            <nav class="menu-sections">
+                <p class="section-title">TASKS</p>
+                <ul>
+                    <li class="task-item"><i class="fas fa-angles-right"></i> Upcoming <span class="count">12</span></li>
+                    <li class="task-item active"><i class="fas fa-list-ul"></i> Today <span class="count">5</span></li>
+                    <li class="task-item"><i class="fas fa-calendar-alt"></i> Calendar</li>
+                    <li class="task-item"><i class="fas fa-sticky-note"></i> Sticky Wall</li>
+                </ul>
 
-            <div class="menu-section-title">LISTS</div>
-            <div id="list-menu-items">
+                <p class="section-title">LISTS</p>
+                <ul>
+                    <li class="list-item"><span class="color-dot personal"></span> Personal <span class="count">3</span></li>
+                    <li class="list-item"><span class="color-dot work"></span> Work <span class="count">6</span></li>
+                    <li class="list-item"><span class="color-dot list1"></span> List 1 <span class="count">3</span></li>
+                    <li class="list-item add-list"><i class="fas fa-plus"></i> Add New List</li>
+                </ul>
+
+                <p class="section-title">TAGS</p>
+                <div class="tags-container">
+                    <span class="tag tag-1">Tag 1</span>
+                    <span class="tag tag-2">Tag 2</span>
+                    <span class="tag add-tag"><i class="fas fa-plus"></i> Add Tag</span>
                 </div>
-            <div class="menu-item" id="add-list-btn">
-                + Add New List
-            </div>
-
-            <div class="menu-section-title">TAGS</div>
-            <div id="tag-menu-items">
-                <div class="menu-item" id="add-tag-btn">+ Add Tag</div>
-            </div>
+            </nav>
 
             <div class="menu-footer">
-                <div class="menu-item" id="sign-out-btn"><span class="icon">➡️</span> Sign out</div>
+                <div class="footer-item"><i class="fas fa-cog"></i> Settings</div>
+                <div class="footer-item"><i class="fas fa-sign-out-alt"></i> Sign out</div>
             </div>
-        </div>
-        
-        <div class="main-content">
-            <div class="auth-section">
-                <div id="sign-in-status">Signed out. Data is local.</div>
-                
-                <div id="google-auth-controls">
-                    <div id="g_id_onload"
-                        data-client_id="603242997411-l4br2gg0fup8pl8uks2a5gpvnfmj1ml3.apps.googleusercontent.com" 
-                        data-callback="handleCredentialResponse"
-                        data-auto_prompt="false">
+        </aside>
+
+        <main class="matrix-main">
+            <h1>Eisenhower Matrix</h1>
+            <div class="matrix-grid">
+                <div class="matrix-label-v">Important</div>
+                <div class="matrix-label-h urgent-label">Urgent</div>
+                <div class="matrix-label-h not-urgent-label">Not Urgent</div>
+
+ <div class="quadrant important urgent do" data-quadrant="do">
+                    <div class="quadrant-header do-header">
+                        <i class="fas fa-check-circle"></i> DO
                     </div>
-                    <div class="g_id_signin" 
-                        data-type="standard"
-                        data-size="medium"
-                        data-theme="outline"
-                        data-text="sign_in_with"
-                        data-shape="rectangular"
-                        data-logo_alignment="left">
+                    <ul class="task-list">
+                        <li class="task-item" data-date="May 21, 2025" data-task-id="1" draggable="true">
+                            <i class="fas fa-check"></i> Renew Car License
+                            <span class="task-date">May 21, 2025</span>
+                            <input type="checkbox">
+                        </li>
+                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                    </ul>
+                </div>
+
+                <div class="quadrant important not-urgent schedule" data-quadrant="schedule">
+                    <div class="quadrant-header schedule-header">
+                        <i class="fas fa-clock"></i> SCHEDULE
                     </div>
+                    <ul class="task-list">
+                        <li class="task-item" data-date="May 21, 2025" data-task-id="2" draggable="true">
+                            <i class="fas fa-check"></i> Go to Bed Early
+                            <span class="task-date">May 21, 2025</span>
+                            <input type="checkbox">
+                        </li>
+                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                    </ul>
                 </div>
-            </div>
-
-            <h1><span id="main-header">Kanban Board</span> <span class="header-count" id="task-count-display"></span></h1>
-            
-            <div class="input-group add-task-group">
-                <span class="add-task-icon">+</span>
-                <input type="text" id="new-task-title" placeholder="Add New Task" autofocus>
-                <button id="add-task-btn" class="add-btn">Add</button> 
-            </div>
-            
-            <div id="kanban-board-container">
-                </div>
-        </div>
-        
-        <div class="task-details-panel hidden" id="task-details-panel">
-            <h2 id="detail-title">Task: Title</h2>
-            <button class="close-btn" id="close-details-btn">×</button>
-
-            <div class="detail-section">
-                <label for="detail-text">Task Title</label>
-                <input type="text" id="detail-text">
-            </div>
-            
-            <div class="detail-section">
-                <label for="detail-description">Description</label>
-                <textarea id="detail-description" rows="3"></textarea>
-            </div>
-            
-            <div class="detail-section detail-row">
-                <div class="detail-col">
-                    <label for="detail-list">List</label>
-                    <select id="detail-list"></select>
-                </div>
-                <div class="detail-col">
-                    <label for="detail-due-date">Due date</label>
-                    <input type="date" id="detail-due-date">
-                </div>
-            </div>
-            
-            <div class="detail-section tags-section">
-                <label>Tags</label>
-                <div id="detail-tags-display">
+...
+                <div class="quadrant not-important urgent delegate" data-quadrant="delegate">
+                    <div class="quadrant-header delegate-header">
+                        <i class="fas fa-tasks"></i> DELEGATE
                     </div>
-                <div class="tag-input-group">
-                    <input type="text" id="new-tag-text" placeholder="Add Tag">
-                    <button id="add-tag-to-task-btn">+ Add Tag</button>
+                    <ul class="task-list">
+                        <li class="task-item" data-date="May 30, 2025" data-task-id="3" draggable="true">
+                            <i class="fas fa-check"></i> Schedule Pick-Up
+                            <span class="task-date">May 30, 2025</span>
+                            <input type="checkbox">
+                        </li>
+                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                    </ul>
                 </div>
-            </div>
 
-            <div class="detail-section">
-                <h3>Subtasks:</h3>
-                <div class="input-group subtask-input">
-                    <span class="add-task-icon">+</span>
-                    <input type="text" id="new-subtask-text" placeholder="Add New Subtask">
-                    <button id="add-subtask-btn" class="hidden">Add</button>
+                <div class="quadrant not-important not-urgent delete" data-quadrant="delete">
+                    <div class="quadrant-header delete-header">
+                        <i class="fas fa-times-circle"></i> DELETE
+                    </div>
+                    <ul class="task-list">
+                        <li class="task-item" data-date="May 21, 2025" data-task-id="4" draggable="true">
+                            <i class="fas fa-check"></i> Quit Scrolling Social Media
+                            <span class="task-date">May 21, 2025</span>
+                            <input type="checkbox">
+                        </li>
+                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                    </ul>
                 </div>
-                <ul id="subtask-list"></ul>
-            </div>
 
-            <div class="actions-group">
-                <button id="delete-task-btn" class="delete-btn">Delete Task</button>
-                <button id="save-changes-btn" class="save-btn">Save changes</button>
             </div>
-        </div>
+        </main>
     </div>
 
+    <div id="task-details-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" title="Close">&times;</span>
+            <form id="task-form">
+                <h2>Task Details</h2>
+
+                <div class="form-group">
+                    <label for="task-title"><i class="fas fa-heading"></i> Task Title</label>
+                    <input type="text" id="task-title" name="task-title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
+                    <textarea id="task-description" name="task-description"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group half-width">
+                        <label for="task-list"><i class="fas fa-list-ul"></i> List</label>
+                        <select id="task-list" name="task-list">
+                            <option value="Personal">Personal</option>
+                            <option value="Work">Work</option>
+                            <option value="List 1">List 1</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group half-width">
+                        <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
+                        <input type="date" id="task-due-date" name="task-due-date">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="task-tags"><i class="fas fa-tags"></i> Tags</label>
+                    <input type="text" id="task-tags" name="task-tags" placeholder="Enter tags (e.g., important, urgent)">
+                    <div id="selected-tags" class="selected-tags-container">
+                        </div>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-list-check"></i> Subtasks</label>
+                    <ul id="subtask-list" class="subtask-list">
+                        <li class="new-subtask">
+                            <input type="text" placeholder="Add a new subtask">
+                            <button type="button" class="add-subtask-btn"><i class="fas fa-plus"></i></button>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" id="delete-task-btn" class="btn delete-btn"><i class="fas fa-trash"></i> Delete Task</button>
+                    <button type="submit" class="btn save-btn"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+
+                <input type="hidden" id="current-task-id" name="current-task-id">
+            </form>
+        </div>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
