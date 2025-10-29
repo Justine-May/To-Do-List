@@ -9,6 +9,7 @@
 </head>
 <body>
     <div class="app-container">
+        
         <aside class="sidebar">
             <div class="menu-header">
                 <h2>Menu</h2>
@@ -24,8 +25,9 @@
                 <ul>
                     <li class="task-item"><i class="fas fa-angles-right"></i> Upcoming <span class="count">12</span></li>
                     <li class="task-item active"><i class="fas fa-list-ul"></i> Today <span class="count">5</span></li>
-                    <li class="task-item"><i class="fas fa-calendar-alt"></i> Calendar</li>
-                    <li class="task-item"><i class="fas fa-sticky-note"></i> Sticky Wall</li>
+                    <li class="task-item" id="all-tasks-menu-item"><i class="fas fa-tasks"></i> All Tasks</li>
+                    <li class="task-item" id="calendar-menu-item"><i class="fas fa-calendar-alt"></i> Calendar</li>
+                    <li class="task-item" id="sticky-wall-menu-item"><i class="fas fa-sticky-note"></i> Sticky Wall</li>
                 </ul>
 
                 <p class="section-title">LISTS</p>
@@ -51,129 +53,193 @@
         </aside>
 
         <main class="matrix-main">
-            <h1>Eisenhower Matrix</h1>
-            <div class="matrix-grid">
-                <div class="matrix-label-v">Important</div>
-                <div class="matrix-label-h urgent-label">Urgent</div>
-                <div class="matrix-label-h not-urgent-label">Not Urgent</div>
+            <div id="matrix-container">
+                <h1 id="main-greeting">Hi, User!</h1>
+                <div id="editable-quote" contenteditable="true" placeholder="Enter a short quote or thought...">Empty quote</div>
+                <div class="matrix-grid">
+                    <div class="matrix-label-v">Important</div>
+                    <div class="matrix-label-h urgent-label">Urgent</div>
+                    <div class="matrix-label-h not-urgent-label">Not Urgent</div>
 
- <div class="quadrant important urgent do" data-quadrant="do">
-                    <div class="quadrant-header do-header">
-                        <i class="fas fa-check-circle"></i> DO
-                    </div>
-                    <ul class="task-list">
-                        <li class="task-item" data-date="May 21, 2025" data-task-id="1" draggable="true">
-                            <i class="fas fa-check"></i> Renew Car License
-                            <span class="task-date">May 21, 2025</span>
-                            <input type="checkbox">
-                        </li>
-                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
-                    </ul>
-                </div>
-
-                <div class="quadrant important not-urgent schedule" data-quadrant="schedule">
-                    <div class="quadrant-header schedule-header">
-                        <i class="fas fa-clock"></i> SCHEDULE
-                    </div>
-                    <ul class="task-list">
-                        <li class="task-item" data-date="May 21, 2025" data-task-id="2" draggable="true">
-                            <i class="fas fa-check"></i> Go to Bed Early
-                            <span class="task-date">May 21, 2025</span>
-                            <input type="checkbox">
-                        </li>
-                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
-                    </ul>
-                </div>
-...
-                <div class="quadrant not-important urgent delegate" data-quadrant="delegate">
-                    <div class="quadrant-header delegate-header">
-                        <i class="fas fa-tasks"></i> DELEGATE
-                    </div>
-                    <ul class="task-list">
-                        <li class="task-item" data-date="May 30, 2025" data-task-id="3" draggable="true">
-                            <i class="fas fa-check"></i> Schedule Pick-Up
-                            <span class="task-date">May 30, 2025</span>
-                            <input type="checkbox">
-                        </li>
-                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
-                    </ul>
-                </div>
-
-                <div class="quadrant not-important not-urgent delete" data-quadrant="delete">
-                    <div class="quadrant-header delete-header">
-                        <i class="fas fa-times-circle"></i> DELETE
-                    </div>
-                    <ul class="task-list">
-                        <li class="task-item" data-date="May 21, 2025" data-task-id="4" draggable="true">
-                            <i class="fas fa-check"></i> Quit Scrolling Social Media
-                            <span class="task-date">May 21, 2025</span>
-                            <input type="checkbox">
-                        </li>
-                        <li class="add-task"><i class="fas fa-plus"></i> New page</li>
-                    </ul>
-                </div>
-
-            </div>
-        </main>
-    </div>
-
-    <div id="task-details-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" title="Close">&times;</span>
-            <form id="task-form">
-                <h2>Task Details</h2>
-
-                <div class="form-group">
-                    <label for="task-title"><i class="fas fa-heading"></i> Task Title</label>
-                    <input type="text" id="task-title" name="task-title" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
-                    <textarea id="task-description" name="task-description"></textarea>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group half-width">
-                        <label for="task-list"><i class="fas fa-list-ul"></i> List</label>
-                        <select id="task-list" name="task-list">
-                            <option value="Personal">Personal</option>
-                            <option value="Work">Work</option>
-                            <option value="List 1">List 1</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group half-width">
-                        <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
-                        <input type="date" id="task-due-date" name="task-due-date">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="task-tags"><i class="fas fa-tags"></i> Tags</label>
-                    <input type="text" id="task-tags" name="task-tags" placeholder="Enter tags (e.g., important, urgent)">
-                    <div id="selected-tags" class="selected-tags-container">
+                    <div class="quadrant important urgent do" data-quadrant="do">
+                        <div class="quadrant-header do-header">
+                            <i class="fas fa-check-circle"></i> DO
                         </div>
-                </div>
+                        <ul class="task-list">
+                            <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                        </ul>
+                    </div>
 
-                <div class="form-group">
-                    <label><i class="fas fa-list-check"></i> Subtasks</label>
-                    <ul id="subtask-list" class="subtask-list">
-                        <li class="new-subtask">
-                            <input type="text" placeholder="Add a new subtask">
-                            <button type="button" class="add-subtask-btn"><i class="fas fa-plus"></i></button>
-                        </li>
+                    <div class="quadrant important not-urgent schedule" data-quadrant="schedule">
+                        <div class="quadrant-header schedule-header">
+                            <i class="fas fa-clock"></i> SCHEDULE
+                        </div>
+                        <ul class="task-list">
+                            <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                        </ul>
+                    </div>
+
+                    <div class="matrix-label-v">Not Important</div>
+
+                    <div class="quadrant not-important urgent delegate" data-quadrant="delegate">
+                        <div class="quadrant-header delegate-header">
+                            <i class="fas fa-tasks"></i> DELEGATE
+                        </div>
+                        <ul class="task-list">
+                            <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                        </ul>
+                    </div>
+
+                    <div class="quadrant not-important not-urgent delete" data-quadrant="delete">
+                        <div class="quadrant-header delete-header">
+                            <i class="fas fa-times-circle"></i> DELETE
+                        </div>
+                        <ul class="task-list">
+                            <li class="add-task"><i class="fas fa-plus"></i> New page</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="all-tasks-container" style="display:none;">
+                <h1>All Tasks (Newest to Oldest)</h1>
+                <ul id="all-tasks-list" class="task-list all-list-view">
                     </ul>
-                </div>
+            </div>
 
-                <div class="modal-actions">
-                    <button type="button" id="delete-task-btn" class="btn delete-btn"><i class="fas fa-trash"></i> Delete Task</button>
-                    <button type="submit" class="btn save-btn"><i class="fas fa-save"></i> Save Changes</button>
-                </div>
+            <div id="sticky-wall-container" style="display:none;">
+                <div id="sticky-canvas-board" class="corkboard-canvas">
+                    <button id="add-note-center" class="add-note-center-btn"><i class="fas fa-plus"></i> Add Sticky Note</button>
+                    </div>
 
-                <input type="hidden" id="current-task-id" name="current-task-id">
-            </form>
-        </div>
+                <div id="sticky-toolbar-container">
+                    
+                    <div class="sticky-toolbar">
+                        <button class="tool-btn" data-tool="select" id="select-tool-btn" title="Select Tool (V)"><i class="fas fa-mouse-pointer"></i></button>
+                        <button class="tool-btn" data-tool="hand" id="hand-tool-btn" title="Hand Tool (H)"><i class="fas fa-hand-paper"></i></button>
+
+                        <div class="tool-group">
+                            <button class="tool-btn" data-tool="sticky-note" id="sticky-note-tool-btn" title="Sticky Note (N)"><i class="fas fa-sticky-note"></i></button>
+                            <div id="sticky-note-color-picker" class="radial-menu color-sub-menu">
+                                </div>
+                        </div>
+
+                        <div class="tool-group">
+                            <button class="tool-btn" data-tool="drawing" id="drawing-tool-btn" title="Pen Tool (P)"><i class="fas fa-pen"></i></button>
+                        </div>
+                        
+                        <div class="tool-group">
+                            <button class="tool-btn" data-tool="stamp" id="stamp-tool-btn" title="Stamp Tool (S)"><i class="fas fa-icons"></i></button>
+                            <div id="stamp-radial-menu" class="radial-menu stamp-sub-menu">
+                                </div>
+                        </div>
+                    </div>
+
+                    <div id="drawing-options-toolbar" class="secondary-toolbar">
+                        <div class="tool-group tool-selection">
+                            <button class="tool-btn secondary-tool-btn" data-tool="marker" title="Marker"><i class="fas fa-highlighter"></i></button> 
+                            <button class="tool-btn secondary-tool-btn" data-tool="highlighter" title="Highlighter"><i class="fas fa-paint-brush"></i></button>
+                            <button class="tool-btn secondary-tool-btn" data-tool="eraser" title="Eraser"><i class="fas fa-eraser"></i></button>
+                        </div> 
+                        <div class="tool-group thickness-options">
+                            <span style="color:white; font-size:12px; margin-right:5px;">Thickness:</span>
+                        </div>
+                        <div class="tool-group color-pattern-options">
+                            <div class="color-swatch-drawing active" data-color="black" title="Black" style="background-color:black;"></div>
+                            <div class="color-swatch-drawing" data-color="red" title="Red" style="background-color:red;"></div>
+                            <div class="color-swatch-drawing" data-color="blue" title="Blue" style="background-color:blue;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="calendar-container" style="display:none;">
+                <h1 id="calendar-header-title">Calendar View</h1>
+                <div class="calendar-controls">
+                    <button id="prev-month-btn" class="btn calendar-nav-btn"><i class="fas fa-chevron-left"></i></button>
+                    <h2 id="current-month-year">October 2025</h2>
+                    <button id="next-month-btn" class="btn calendar-nav-btn"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                <div class="calendar-key">
+                    <span><span class="key-do"></span> DO (Urgent & Important)</span>
+                    <span><span class="key-schedule"></span> SCHEDULE (Important)</span>
+                    <span><span class="key-delegate"></span> DELEGATE (Urgent)</span>
+                    <span><span class="key-delete"></span> DELETE (Neither)</span>
+                </div>
+                <div class="calendar-grid">
+                    <div class="day-name">Sun</div>
+                    <div class="day-name">Mon</div>
+                    <div class="day-name">Tue</div>
+                    <div class="day-name">Wed</div>
+                    <div class="day-name">Thu</div>
+                    <div class="day-name">Fri</div>
+                    <div class="day-name">Sat</div>
+                </div>
+                
+                <div id="calendar-task-list">
+                    <h3>Tasks for Selected Day: <span id="selected-day-date"></span></h3>
+                    <ul id="daily-task-list" class="task-list all-list-view">
+                        </ul>
+                </div>
+            </div>
+            
+            <div id="task-details-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-button">&times;</span>
+                    <h2>Task Details</h2>
+                    <form id="task-form">
+                        <div class="form-group">
+                            <label for="task-title"><i class="fas fa-heading"></i> Title</label>
+                            <input type="text" id="task-title" name="task-title" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="task-description"><i class="fas fa-file-alt"></i> Description</label>
+                            <textarea id="task-description" name="task-description" placeholder="Add a detailed description..."></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group half-width">
+                                <label for="task-quadrant"><i class="fas fa-grip-lines-vertical"></i> Quadrant</label>
+                                <select id="task-quadrant" name="task-quadrant">
+                                    <option value="do">DO (Urgent & Important)</option>
+                                    <option value="schedule">SCHEDULE (Not Urgent & Important)</option>
+                                    <option value="delegate">DELEGATE (Urgent & Not Important)</option>
+                                    <option value="delete">DELETE (Not Urgent & Not Important)</option>
+                                </select>
+                            </div>
+                            <div class="form-group half-width">
+                                <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
+                                <input type="date" id="task-due-date" name="task-due-date">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label><i class="fas fa-tags"></i> Tags</label>
+                            <div id="selected-tags" class="selected-tags-container">
+                                </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label><i class="fas fa-list-check"></i> Subtasks</label>
+                            <ul id="subtask-list" class="subtask-list">
+                                <li class="new-subtask">
+                                    <input type="text" placeholder="Add a new subtask">
+                                    <button type="button" class="add-subtask-btn"><i class="fas fa-plus"></i></button>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" id="delete-task-btn" class="btn delete-btn"><i class="fas fa-trash"></i> Delete Task</button>
+                            <button type="submit" class="btn save-btn"><i class="fas fa-save"></i> Save Changes</button>
+                        </div>
+
+                        <input type="hidden" id="current-task-id" name="current-task-id">
+                    </form>
+                </div>
+            </div>
+            </main>
     </div>
     <script src="script.js"></script>
 </body>
