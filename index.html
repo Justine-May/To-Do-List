@@ -3,190 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eisenhower Matrix App</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Task Organizer & Sticky Wall</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="app-container">
         
         <aside class="sidebar">
             <div class="menu-header">
-                <h2>Menu</h2>
+                <h2>Task Hub</h2>
                 <button class="menu-toggle"><i class="fas fa-bars"></i></button>
             </div>
+            
             <div class="search-box">
                 <i class="fas fa-search"></i>
                 <input type="text" placeholder="Search">
             </div>
 
             <nav class="menu-sections">
-                <p class="section-title">TASKS</p>
+                <p class="section-title">Views</p>
                 <ul>
-                    <li class="task-item"><i class="fas fa-angles-right"></i> Upcoming <span class="count">12</span></li>
-                    <li class="task-item active"><i class="fas fa-list-ul"></i> Today <span class="count">5</span></li>
-                    <li class="task-item" id="all-tasks-menu-item"><i class="fas fa-tasks"></i> All Tasks</li>
-                    <li class="task-item" id="calendar-menu-item"><i class="fas fa-calendar-alt"></i> Calendar</li>
-                    <li class="task-item" id="sticky-wall-menu-item"><i class="fas fa-sticky-note"></i> Sticky Wall</li>
+                    <li class="task-item active" id="matrix-menu-item" data-view="matrix">
+                        <i class="fas fa-columns"></i> Eisenhower Matrix 
+                    </li>
+                    <li class="task-item" id="all-tasks-menu-item" data-view="all-tasks">
+                        <i class="fas fa-tasks"></i> All Tasks
+                    </li>
+                    <li class="task-item" id="sticky-wall-menu-item" data-view="sticky-wall">
+                        <i class="fas fa-sticky-note"></i> Sticky Wall
+                    </li>
                 </ul>
-
-                <p class="section-title">LISTS</p>
-                <ul>
-                    <li class="list-item"><span class="color-dot personal"></span> Personal <span class="count">3</span></li>
-                    <li class="list-item"><span class="color-dot work"></span> Work <span class="count">6</span></li>
-                    <li class="list-item"><span class="color-dot list1"></span> List 1 <span class="count">3</span></li>
-                    <li class="list-item add-list"><i class="fas fa-plus"></i> Add New List</li>
-                </ul>
-
-                <p class="section-title">TAGS</p>
-                <div class="tags-container">
-                    <span class="tag tag-1">Tag 1</span>
-                    <span class="tag tag-2">Tag 2</span>
-                    <span class="tag add-tag"><i class="fas fa-plus"></i> Add Tag</span>
-                </div>
             </nav>
-
-            <div class="menu-footer">
-                <div class="footer-item"><i class="fas fa-cog"></i> Settings</div>
-                <div class="footer-item"><i class="fas fa-sign-out-alt"></i> Sign out</div>
-            </div>
         </aside>
 
-        <main class="matrix-main">
-            <div id="matrix-container">
-                <h1 id="main-greeting">Hi, User!</h1>
-                <div id="editable-quote" contenteditable="true" placeholder="Enter a short quote or thought...">Empty quote</div>
-                <div class="matrix-grid">
-                    <div class="matrix-label-v">Important</div>
-                    <div class="matrix-label-h urgent-label">Urgent</div>
-                    <div class="matrix-label-h not-urgent-label">Not Urgent</div>
-
-                    <div class="quadrant important urgent do" data-quadrant="do">
-                        <div class="quadrant-header do-header">
-                            <i class="fas fa-check-circle"></i> DO
-                        </div>
-                        <ul class="task-list">
-                            <li class="add-task"><i class="fas fa-plus"></i> New page</li>
-                        </ul>
+        <main class="relative">
+            <div id="matrix-container" class="view-container active">
+                <h1 class="matrix-title">Eisenhower Matrix</h1>
+                <div class="matrix-grid relative">
+                    <span class="matrix-axis-label absolute top-2/4 -left-10 transform -translate-y-1/2 rotate-270">IMPORTANT</span>
+                    <span class="matrix-axis-label absolute bottom-2/4 -left-10 transform translate-y-1/2 rotate-270">NOT IMPORTANT</span>
+                    <span class="matrix-axis-label absolute top-0 left-1/4 transform -translate-x-1/2 mt-2">URGENT</span>
+                    <span class="matrix-axis-label absolute top-0 right-1/4 transform -translate-x-1/2 mt-2">NOT URGENT</span>
+                    
+                    <div class="quadrant quadrant-do" data-quadrant="do">
+                        <h3><i class="fas fa-bolt"></i> Do Now</h3>
+                        <ul class="task-list" id="do-list"></ul>
+                        <button class="quadrant-add-btn" data-quadrant="do"><i class="fas fa-plus"></i> Add Task</button>
                     </div>
-
-                    <div class="quadrant important not-urgent schedule" data-quadrant="schedule">
-                        <div class="quadrant-header schedule-header">
-                            <i class="fas fa-clock"></i> SCHEDULE
-                        </div>
-                        <ul class="task-list">
-                            <li class="add-task"><i class="fas fa-plus"></i> New page</li>
-                        </ul>
+                    <div class="quadrant quadrant-schedule" data-quadrant="schedule">
+                        <h3><i class="fas fa-calendar-alt"></i> Schedule</h3>
+                        <ul class="task-list" id="schedule-list"></ul>
+                        <button class="quadrant-add-btn" data-quadrant="schedule"><i class="fas fa-plus"></i> Add Task</button>
                     </div>
-
-                    <div class="matrix-label-v">Not Important</div>
-
-                    <div class="quadrant not-important urgent delegate" data-quadrant="delegate">
-                        <div class="quadrant-header delegate-header">
-                            <i class="fas fa-tasks"></i> DELEGATE
-                        </div>
-                        <ul class="task-list">
-                            <li class="add-task"><i class="fas fa-plus"></i> New page</li>
-                        </ul>
+                    <div class="quadrant quadrant-delegate" data-quadrant="delegate">
+                        <h3><i class="fas fa-user-plus"></i> Delegate</h3>
+                        <ul class="task-list" id="delegate-list"></ul>
+                        <button class="quadrant-add-btn" data-quadrant="delegate"><i class="fas fa-plus"></i> Add Task</button>
                     </div>
-
-                    <div class="quadrant not-important not-urgent delete" data-quadrant="delete">
-                        <div class="quadrant-header delete-header">
-                            <i class="fas fa-times-circle"></i> DELETE
-                        </div>
-                        <ul class="task-list">
-                            <li class="add-task"><i class="fas fa-plus"></i> New page</li>
-                        </ul>
+                    <div class="quadrant quadrant-eliminate" data-quadrant="eliminate">
+                        <h3><i class="fas fa-trash-alt"></i> Eliminate</h3>
+                        <ul class="task-list" id="eliminate-list"></ul>
+                        <button class="quadrant-add-btn" data-quadrant="eliminate"><i class="fas fa-plus"></i> Add Task</button>
                     </div>
                 </div>
             </div>
-            
-            <div id="all-tasks-container" style="display:none;">
-                <h1>All Tasks (Newest to Oldest)</h1>
-                <ul id="all-tasks-list" class="task-list all-list-view">
+
+            <div id="all-tasks-container" class="view-container">
+                <div class="all-tasks-header">
+                    <h2>All Tasks List</h2>
+                    <button class="btn save-btn" id="new-task-btn"><i class="fas fa-plus"></i> New Task</button>
+                </div>
+                <ul id="all-tasks-list">
                     </ul>
             </div>
-
-            <div id="sticky-wall-container" style="display:none;">
-                <div id="sticky-canvas-board" class="corkboard-canvas">
-                    <button id="add-note-center" class="add-note-center-btn"><i class="fas fa-plus"></i> Add Sticky Note</button>
-                    </div>
-
-                <div id="sticky-toolbar-container">
-                    
-                    <div class="sticky-toolbar">
-                        <button class="tool-btn" data-tool="select" id="select-tool-btn" title="Select Tool (V)"><i class="fas fa-mouse-pointer"></i></button>
-                        <button class="tool-btn" data-tool="hand" id="hand-tool-btn" title="Hand Tool (H)"><i class="fas fa-hand-paper"></i></button>
-
-                        <div class="tool-group">
-                            <button class="tool-btn" data-tool="sticky-note" id="sticky-note-tool-btn" title="Sticky Note (N)"><i class="fas fa-sticky-note"></i></button>
-                            <div id="sticky-note-color-picker" class="radial-menu color-sub-menu">
-                                </div>
-                        </div>
-
-                        <div class="tool-group">
-                            <button class="tool-btn" data-tool="drawing" id="drawing-tool-btn" title="Pen Tool (P)"><i class="fas fa-pen"></i></button>
-                        </div>
-                        
-                        <div class="tool-group">
-                            <button class="tool-btn" data-tool="stamp" id="stamp-tool-btn" title="Stamp Tool (S)"><i class="fas fa-icons"></i></button>
-                            <div id="stamp-radial-menu" class="radial-menu stamp-sub-menu">
-                                </div>
-                        </div>
-                    </div>
-
-                    <div id="drawing-options-toolbar" class="secondary-toolbar">
-                        <div class="tool-group tool-selection">
-                            <button class="tool-btn secondary-tool-btn" data-tool="marker" title="Marker"><i class="fas fa-highlighter"></i></button> 
-                            <button class="tool-btn secondary-tool-btn" data-tool="highlighter" title="Highlighter"><i class="fas fa-paint-brush"></i></button>
-                            <button class="tool-btn secondary-tool-btn" data-tool="eraser" title="Eraser"><i class="fas fa-eraser"></i></button>
-                        </div> 
-                        <div class="tool-group thickness-options">
-                            <span style="color:white; font-size:12px; margin-right:5px;">Thickness:</span>
-                        </div>
-                        <div class="tool-group color-pattern-options">
-                            <div class="color-swatch-drawing active" data-color="black" title="Black" style="background-color:black;"></div>
-                            <div class="color-swatch-drawing" data-color="red" title="Red" style="background-color:red;"></div>
-                            <div class="color-swatch-drawing" data-color="blue" title="Blue" style="background-color:blue;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="calendar-container" style="display:none;">
-                <h1 id="calendar-header-title">Calendar View</h1>
-                <div class="calendar-controls">
-                    <button id="prev-month-btn" class="btn calendar-nav-btn"><i class="fas fa-chevron-left"></i></button>
-                    <h2 id="current-month-year">October 2025</h2>
-                    <button id="next-month-btn" class="btn calendar-nav-btn"><i class="fas fa-chevron-right"></i></button>
-                </div>
-                <div class="calendar-key">
-                    <span><span class="key-do"></span> DO (Urgent & Important)</span>
-                    <span><span class="key-schedule"></span> SCHEDULE (Important)</span>
-                    <span><span class="key-delegate"></span> DELEGATE (Urgent)</span>
-                    <span><span class="key-delete"></span> DELETE (Neither)</span>
-                </div>
-                <div class="calendar-grid">
-                    <div class="day-name">Sun</div>
-                    <div class="day-name">Mon</div>
-                    <div class="day-name">Tue</div>
-                    <div class="day-name">Wed</div>
-                    <div class="day-name">Thu</div>
-                    <div class="day-name">Fri</div>
-                    <div class="day-name">Sat</div>
+            
+            <div id="sticky-wall-container" class="view-container">
+                <div id="corkboard" data-tool="select">
+                    <canvas id="annotation-canvas"></canvas>
                 </div>
                 
-                <div id="calendar-task-list">
-                    <h3>Tasks for Selected Day: <span id="selected-day-date"></span></h3>
-                    <ul id="daily-task-list" class="task-list all-list-view">
-                        </ul>
-                </div>
-            </div>
+                <div id="main-toolbar" class="hidden">
+                    <div class="toolbar-segment tool-selection">
+                        <button class="tool-btn active" data-tool="select" title="Select/Move">
+                            <i class="ri-mouse-line"></i> Select
+                        </button>
+                        <button class="tool-btn" data-tool="marker" title="Marker">
+                            <i class="ri-edit-line"></i> Marker
+                        </button>
+                        <button class="tool-btn" data-tool="highlight" title="Highlighter">
+                            <i class="ri-mark-pen-line"></i> Highlight
+                        </button>
+                        <button class="tool-btn" data-tool="add-note" title="Add Sticky Note">
+                            <i class="ri-sticky-note-line"></i> Note
+                        </button>
+                        <button class="tool-btn" data-tool="washi-tape" title="Washi Tape">
+                            <i class="ri-coupon-4-line"></i> Tape
+                        </button>
+                    </div>
             
-            <div id="task-details-modal" class="modal">
+                    <div class="toolbar-segment draw-options">
+                        <div id="current-color-indicator" style="background-color: black;" title="Current Color"></div>
+                        <input type="range" id="stroke-width-slider" min="1" max="50" value="5" title="Stroke Width">
+                        <input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1" title="Opacity (Highlighter Only)">
+                    </div>
+
+                    <div class="toolbar-segment">
+                        <button class="tool-btn" id="undo-btn" title="Undo Last Stroke">
+                            <i class="ri-arrow-go-back-line"></i>
+                        </button>
+                        <button class="tool-btn" id="clear-all-btn" title="Clear All Drawings">
+                            <i class="ri-delete-bin-line"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="note-floating-toolbar" class="hidden">
+                    <div class="note-toolbar-segment">
+                        <button id="note-color-btn" class="note-tool-btn note-select-btn" title="Note Color" tabindex="-1">
+                            <i class="ri-palette-line"></i>
+                            <div id="current-note-color" class="w-4 h-4 rounded-full border border-gray-600">
+                                <span class="note-color-indicator" style="background-color: white;"></span>
+                            </div>
+                        </button>
+                        <div id="note-color-menu" class="note-dropdown-menu">
+                            <div class="note-color-grid">
+                                </div>
+                        </div>
+                    </div>
+
+                    <div class="note-toolbar-segment">
+                        <button id="note-font-btn" class="note-tool-btn note-select-btn" title="Font Style" tabindex="-1">
+                            <i class="ri-font-family"></i>
+                            <span id="current-font-display">Inter</span>
+                        </button>
+                        <div id="note-font-menu" class="note-dropdown-menu">
+                            <div class="note-font-option" data-font="inter" style="font-family: 'Inter', sans-serif;">Inter (Default)</div>
+                            <div class="note-font-option" data-font="roboto" style="font-family: 'Roboto', sans-serif;">Roboto</div>
+                            <div class="note-font-option" data-font="marker" style="font-family: 'Permanent Marker', cursive;">Marker</div>
+                        </div>
+                    </div>
+                    
+                    <div class="note-toolbar-segment">
+                        <button id="note-size-btn" class="note-tool-btn note-select-btn" title="Font Size" tabindex="-1">
+                            <i class="ri-text"></i>
+                            <span id="current-size-display">Medium</span>
+                        </button>
+                        <div id="note-size-menu" class="note-dropdown-menu">
+                            <div class="note-size-option" data-size="small">Small (14px)</div>
+                            <div class="note-size-option" data-size="medium">Medium (16px)</div>
+                            <div class="note-size-option" data-size="large">Large (18px)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="note-toolbar-segment">
+                        <button class="note-tool-btn" data-text-style="bold" title="Bold" tabindex="-1">
+                            <i class="ri-bold"></i>
+                        </button>
+                        <button class="note-tool-btn" data-text-style="strike" title="Strikethrough" tabindex="-1">
+                            <i class="ri-strikethrough"></i>
+                        </button>
+                        <button class="note-tool-btn" data-text-style="unordered-list" title="Bullet List" tabindex="-1">
+                            <i class="ri-list-unordered"></i>
+                        </button>
+                        <button class="note-tool-btn" data-text-style="ordered-list" title="Numbered List" tabindex="-1">
+                            <i class="ri-list-ordered"></i>
+                        </button>
+                        <button class="note-tool-btn" id="note-author-btn" title="Insert Author/Username" tabindex="-1">
+                            <i class="ri-at-line"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="note-toolbar-segment note-right-edge">
+                        <button class="note-tool-btn note-draw-toggle" title="Draw on Note" tabindex="-1">
+                            <i class="ri-brush-line"></i>
+                        </button>
+                        <button class="note-tool-btn note-delete-btn" title="Delete Note" tabindex="-1">
+                            <i class="ri-delete-bin-line"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="task-details-modal" class="modal-overlay">
                 <div class="modal-content">
-                    <span class="close-button">&times;</span>
+                    <button class="close-button"><i class="fas fa-times"></i></button>
                     <h2>Task Details</h2>
+
                     <form id="task-form">
                         <div class="form-group">
                             <label for="task-title"><i class="fas fa-heading"></i> Title</label>
@@ -194,30 +202,32 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="task-description"><i class="fas fa-file-alt"></i> Description</label>
-                            <textarea id="task-description" name="task-description" placeholder="Add a detailed description..."></textarea>
+                            <label for="task-description"><i class="fas fa-info-circle"></i> Description</label>
+                            <textarea id="task-description" name="task-description"></textarea>
                         </div>
-
+                        
                         <div class="form-row">
                             <div class="form-group half-width">
-                                <label for="task-quadrant"><i class="fas fa-grip-lines-vertical"></i> Quadrant</label>
-                                <select id="task-quadrant" name="task-quadrant">
-                                    <option value="do">DO (Urgent & Important)</option>
-                                    <option value="schedule">SCHEDULE (Not Urgent & Important)</option>
-                                    <option value="delegate">DELEGATE (Urgent & Not Important)</option>
-                                    <option value="delete">DELETE (Not Urgent & Not Important)</option>
-                                </select>
+                                <label for="task-due-date"><i class="fas fa-calendar-day"></i> Due Date</label>
+                                <input type="date" id="task-due-date" name="task-due-date">
                             </div>
                             <div class="form-group half-width">
-                                <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
-                                <input type="date" id="task-due-date" name="task-due-date">
+                                <label for="task-priority"><i class="fas fa-star"></i> Quadrant</label>
+                                <select id="task-priority" name="task-priority">
+                                    <option value="do">Do Now (Urgent & Important)</option>
+                                    <option value="schedule">Schedule (Not Urgent & Important)</option>
+                                    <option value="delegate">Delegate (Urgent & Not Important)</option>
+                                    <option value="eliminate">Eliminate (Not Urgent & Not Important)</option>
+                                </select>
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label><i class="fas fa-tags"></i> Tags</label>
-                            <div id="selected-tags" class="selected-tags-container">
-                                </div>
+                        <div id="sticky-note-settings" class="hidden">
+                            <div class="form-group">
+                                <label><i class="fas fa-paint-brush"></i> Note Color</label>
+                                <div id="sticky-note-color-picker" class="flex flex-wrap gap-2">
+                                    </div>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -239,8 +249,66 @@
                     </form>
                 </div>
             </div>
-            </main>
+            
+            <div id="custom-confirm-dialog" class="custom-confirm-overlay hidden">
+                <div class="custom-confirm-box">
+                    <p id="confirm-message">Are you sure you want to proceed?</p>
+                    <div class="actions">
+                        <button id="confirm-cancel-btn">Cancel</button>
+                        <button id="confirm-delete-btn">Delete</button>
+                    </div>
+                </div>
+            </div>
+            
+        </main>
     </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, arrayUnion, arrayRemove, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let isAuthReady = false;
+
+        if (firebaseConfig) {
+            setLogLevel('Debug');
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // Authentication setup
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                } else {
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Firebase auth error:", error);
+                    }
+                }
+                // Mark authentication as ready
+                isAuthReady = true;
+                if (window.initializeAppLogic) {
+                    // Call the main initialization function in script.js once Firebase is ready
+                    window.initializeAppLogic(db, auth, userId, isAuthReady, appId);
+                }
+            });
+        }
+    </script>
+    
     <script src="script.js"></script>
 </body>
 </html>
