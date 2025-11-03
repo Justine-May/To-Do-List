@@ -175,7 +175,7 @@ main {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: transform 0.3s ease, background-color 0.3s;
+    transition: transform 0.3s ease;
 }
 
 .quadrant:hover {
@@ -187,12 +187,6 @@ main {
 .quadrant-schedule { background-color: #c8e6c9; } /* Green/Not Urgent & Important */
 .quadrant-delegate { background-color: #ffccbc; } /* Red/Urgent & Not Important */
 .quadrant-eliminate { background-color: #b3e5fc; } /* Blue/Not Urgent & Not Important */
-
-/* Drag-and-Drop Drop Zone Feedback */
-.quadrant.drag-over {
-    box-shadow: 0 0 0 4px #6a40e1;
-    background-color: rgba(106, 64, 225, 0.15);
-}
 
 .quadrant h3 {
     font-size: 1.25em;
@@ -235,7 +229,7 @@ main {
     margin-bottom: 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     cursor: pointer;
-    transition: transform 0.1s, box-shadow 0.1s, opacity 0.2s;
+    transition: transform 0.1s, box-shadow 0.1s;
     display: flex;
     align-items: center;
 }
@@ -243,18 +237,6 @@ main {
 .task-item-card:hover {
     transform: scale(1.02);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-/* Dragging Feedback */
-.task-item-card[draggable="true"] {
-    cursor: grab;
-}
-
-.task-item-card.dragging {
-    opacity: 0.3;
-    border: 2px dashed #6a40e1;
-    box-shadow: none;
-    transform: none;
 }
 
 .task-item-card.completed {
@@ -843,6 +825,54 @@ textarea#task-description {
 .sticky-note[data-drawing="true"] .note-canvas {
     pointer-events: auto; /* Active drawing state */
     z-index: 10; /* Above content */
+}
+
+.sticky-note[data-font="marker"] .sticky-note-content { 
+    font-family: 'Permanent Marker', cursive; 
+} 
+.sticky-note[data-font="roboto"] .sticky-note-content { 
+    font-family: 'Roboto', sans-serif; 
+}
+.sticky-note[data-font="inter"] .sticky-note-content { 
+    font-family: 'Inter', sans-serif; 
+} 
+
+/* Corrected and Expanded Font size styles */
+.sticky-note[data-size="small"] .sticky-note-content { 
+    font-size: 14px; 
+}
+.sticky-note[data-size="medium"] .sticky-note-content { 
+    font-size: 16px; 
+}
+.sticky-note[data-size="large"] .sticky-note-content { 
+    font-size: 18px; 
+}
+.sticky-note[data-size="x-large"] .sticky-note-content { /* Added missing x-large size */
+    font-size: 24px; 
+}
+
+.sticky-note-content ul, 
+.sticky-note-content ol {
+    /* Restore padding on the left to show the bullets/numbers */
+    padding-left: 25px; 
+    /* Add some vertical spacing between the list and surrounding content */
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+/* Ensure bullet points are explicitly set for unordered lists */
+.sticky-note-content ul {
+    list-style-type: disc;
+}
+
+/* Ensure numbers are explicitly set for ordered lists */
+.sticky-note-content ol {
+    list-style-type: decimal;
+}
+
+/* Add a little space around list items themselves */
+.sticky-note-content li {
+    margin-bottom: 3px;
 }
 
 /* Message Box Styling (for confirm replacement) */

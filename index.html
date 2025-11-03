@@ -122,192 +122,145 @@
                     </div>
                 </div>
 
-                <div id="note-floating-toolbar" class="hidden">
-                    <div class="note-toolbar-segment">
-                        <button id="note-color-btn" class="note-tool-btn note-select-btn" title="Note Color" tabindex="-1">
-                            <i class="ri-palette-line"></i>
-                            <div id="current-note-color" class="w-4 h-4 rounded-full border border-gray-600">
-                                <span class="note-color-indicator" style="background-color: white;"></span>
-                            </div>
+                            <div id="note-floating-toolbar" class="hidden">
+                <div class="note-toolbar-segment note-select-group">
+                    <button id="note-color-btn" class="note-tool-btn note-select-btn" title="Note Color" tabindex="-1">
+                        <span id="current-note-color"><i class="note-color-indicator ri-square-fill"></i></span>
+                        <i class="ri-arrow-down-s-line ml-1"></i>
+                    </button>
+                    <div id="note-color-menu" class="note-dropdown-menu">
+                        <button class="note-color-option" data-color="yellow" title="Yellow">
+                            <i class="note-color-indicator ri-square-fill"></i>
                         </button>
-                        <div id="note-color-menu" class="note-dropdown-menu">
-                            <div class="note-color-grid">
-                                </div>
-                        </div>
-                    </div>
-
-                    <div class="note-toolbar-segment">
-                        <button id="note-font-btn" class="note-tool-btn note-select-btn" title="Font Style" tabindex="-1">
-                            <i class="ri-font-family"></i>
-                            <span id="current-font-display">Inter</span>
+                        <button class="note-color-option" data-color="blue" title="Blue">
+                            <i class="note-color-indicator ri-square-fill"></i>
                         </button>
-                        <div id="note-font-menu" class="note-dropdown-menu">
-                            <div class="note-font-option" data-font="inter" style="font-family: 'Inter', sans-serif;">Inter (Default)</div>
-                            <div class="note-font-option" data-font="roboto" style="font-family: 'Roboto', sans-serif;">Roboto</div>
-                            <div class="note-font-option" data-font="marker" style="font-family: 'Permanent Marker', cursive;">Marker</div>
-                        </div>
-                    </div>
-                    
-                    <div class="note-toolbar-segment">
-                        <button id="note-size-btn" class="note-tool-btn note-select-btn" title="Font Size" tabindex="-1">
-                            <i class="ri-text"></i>
-                            <span id="current-size-display">Medium</span>
+                        <button class="note-color-option" data-color="green" title="Green">
+                            <i class="note-color-indicator ri-square-fill"></i>
                         </button>
-                        <div id="note-size-menu" class="note-dropdown-menu">
-                            <div class="note-size-option" data-size="small">Small (14px)</div>
-                            <div class="note-size-option" data-size="medium">Medium (16px)</div>
-                            <div class="note-size-option" data-size="large">Large (18px)</div>
-                        </div>
-                    </div>
-                    
-                    <div class="note-toolbar-segment">
-                        <button class="note-tool-btn" data-text-style="bold" title="Bold" tabindex="-1">
-                            <i class="ri-bold"></i>
+                        <button class="note-color-option" data-color="pink" title="Pink">
+                            <i class="note-color-indicator ri-square-fill"></i>
                         </button>
-                        <button class="note-tool-btn" data-text-style="strike" title="Strikethrough" tabindex="-1">
-                            <i class="ri-strikethrough"></i>
+                        <button class="note-color-option" data-color="purple" title="Purple">
+                            <i class="note-color-indicator ri-square-fill"></i>
                         </button>
-                        <button class="note-tool-btn" data-text-style="unordered-list" title="Bullet List" tabindex="-1">
-                            <i class="ri-list-unordered"></i>
-                        </button>
-                        <button class="note-tool-btn" data-text-style="ordered-list" title="Numbered List" tabindex="-1">
-                            <i class="ri-list-ordered"></i>
-                        </button>
-                        <button class="note-tool-btn" id="note-author-btn" title="Insert Author/Username" tabindex="-1">
-                            <i class="ri-at-line"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="note-toolbar-segment note-right-edge">
-                        <button class="note-tool-btn note-draw-toggle" title="Draw on Note" tabindex="-1">
-                            <i class="ri-brush-line"></i>
-                        </button>
-                        <button class="note-tool-btn note-delete-btn" title="Delete Note" tabindex="-1">
-                            <i class="ri-delete-bin-line"></i>
+                        <button class="note-color-option" data-color="white" title="White">
+                            <i class="note-color-indicator ri-square-fill"></i>
                         </button>
                     </div>
                 </div>
 
-            </div>
+                <div class="note-toolbar-segment note-select-group">
+                    <button id="note-font-btn" class="note-tool-btn note-select-btn" title="Font Family" tabindex="-1">
+                        <span id="current-font-display">Inter</span>
+                        <i class="ri-arrow-down-s-line ml-1"></i>
+                    </button>
+                    <div id="note-font-menu" class="note-dropdown-menu">
+                        <button class="note-font-option" data-font="inter">Inter (Sans-serif)</button>
+                        <button class="note-font-option" data-font="roboto">Roboto (Sans-serif)</button>
+                        <button class="note-font-option" data-font="marker">Permanent Marker (Handwritten)</button>
+                    </div>
+                </div>
 
+                <div class="note-toolbar-segment note-select-group">
+                    <button id="note-size-btn" class="note-tool-btn note-select-btn" title="Text Size" tabindex="-1">
+                        <i class="ri-text"></i>
+                        <span id="current-size-display">Medium</span>
+                        <i class="ri-arrow-down-s-line ml-1"></i>
+                    </button>
+                    <div id="note-size-menu" class="note-dropdown-menu">
+                        <button class="note-size-option" data-size="small">Small</button>
+                        <button class="note-size-option active-size" data-size="medium">Medium</button>
+                        <button class="note-size-option" data-size="large">Large</button>
+                    </div>
+                </div>
+                
+                <div class="note-toolbar-segment note-formatting-buttons">
+                    <button class="note-tool-btn" data-text-style="bold" title="Bold" tabindex="-1">
+                        <i class="ri-bold"></i>
+                    </button>
+                    <button class="note-tool-btn" data-text-style="strike" title="Strikethrough" tabindex="-1">
+                        <i class="ri-strikethrough"></i>
+                    </button>
+                    <button class="note-tool-btn" data-text-style="unordered-list" title="Bullet/Checklist (Unordered List)" tabindex="-1">
+                        <i class="ri-list-unordered"></i>
+                    </button>
+                    <button class="note-tool-btn" data-text-style="ordered-list" title="Numbered List" tabindex="-1">
+                        <i class="ri-list-ordered"></i>
+                    </button>
+                    <button class="note-tool-btn" id="note-author-btn" title="Insert Author/Username" tabindex="-1">
+                        <i class="ri-at-line"></i>
+                    </button>
+                </div>
+
+                <div class="note-toolbar-segment note-right-edge note-action-buttons">
+                    <button class="note-tool-btn note-draw-toggle" title="Draw on Note" tabindex="-1">
+                        <i class="ri-pencil-line"></i>
+                    </button>
+                    <button class="note-tool-btn note-delete-btn" title="Delete Note" tabindex="-1">
+                        <i class="ri-delete-bin-line"></i>
+                    </button>
+                </div>
+            </div>
+            </div>
+            
             <div id="task-details-modal" class="modal-overlay">
-                <div class="modal-content">
-                    <button class="close-button"><i class="fas fa-times"></i></button>
-                    <h2>Task Details</h2>
+    <div class="modal-content">
+        <button class="close-button" onclick="closeModal()">&times;</button>
+        <h2 id="modal-title">Task Details</h2>
+        <form id="task-form">
+            <input type="hidden" id="current-task-id" value="">
+            
+            <div class="form-group">
+                <label for="task-title"><i class="fas fa-heading"></i> Title</label>
+                <input type="text" id="task-title" required placeholder="Enter task title">
+            </div>
 
-                    <form id="task-form">
-                        <div class="form-group">
-                            <label for="task-title"><i class="fas fa-heading"></i> Title</label>
-                            <input type="text" id="task-title" name="task-title" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="task-description"><i class="fas fa-info-circle"></i> Description</label>
-                            <textarea id="task-description" name="task-description"></textarea>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group half-width">
-                                <label for="task-due-date"><i class="fas fa-calendar-day"></i> Due Date</label>
-                                <input type="date" id="task-due-date" name="task-due-date">
-                            </div>
-                            <div class="form-group half-width">
-                                <label for="task-priority"><i class="fas fa-star"></i> Quadrant</label>
-                                <select id="task-priority" name="task-priority">
-                                    <option value="do">Do Now (Urgent & Important)</option>
-                                    <option value="schedule">Schedule (Not Urgent & Important)</option>
-                                    <option value="delegate">Delegate (Urgent & Not Important)</option>
-                                    <option value="eliminate">Eliminate (Not Urgent & Not Important)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div id="sticky-note-settings" class="hidden">
-                            <div class="form-group">
-                                <label><i class="fas fa-paint-brush"></i> Note Color</label>
-                                <div id="sticky-note-color-picker" class="flex flex-wrap gap-2">
-                                    </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label><i class="fas fa-list-check"></i> Subtasks</label>
-                            <ul id="subtask-list" class="subtask-list">
-                                <li class="new-subtask">
-                                    <input type="text" placeholder="Add a new subtask">
-                                    <button type="button" class="add-subtask-btn"><i class="fas fa-plus"></i></button>
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div class="modal-actions">
-                            <button type="button" id="delete-task-btn" class="btn delete-btn"><i class="fas fa-trash"></i> Delete Task</button>
-                            <button type="submit" class="btn save-btn"><i class="fas fa-save"></i> Save Changes</button>
-                        </div>
-
-                        <input type="hidden" id="current-task-id" name="current-task-id">
-                    </form>
+            <div class="form-row">
+                <div class="form-group half-width">
+                    <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
+                    <input type="date" id="task-due-date">
+                </div>
+                <div class="form-group half-width">
+                    <label for="task-priority"><i class="fas fa-star"></i> Quadrant</label>
+                    <select id="task-priority" required>
+                        <option value="do">Do Now (Urgent & Important)</option>
+                        <option value="schedule">Schedule (Important, Not Urgent)</option>
+                        <option value="delegate">Delegate (Urgent, Not Important)</option>
+                        <option value="eliminate">Eliminate (Not Urgent & Not Important)</option>
+                    </select>
                 </div>
             </div>
-            
-            <div id="custom-confirm-dialog" class="custom-confirm-overlay hidden">
-                <div class="custom-confirm-box">
-                    <p id="confirm-message">Are you sure you want to proceed?</p>
-                    <div class="actions">
-                        <button id="confirm-cancel-btn">Cancel</button>
-                        <button id="confirm-delete-btn">Delete</button>
-                    </div>
-                </div>
+
+            <div class="form-group">
+                <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
+                <textarea id="task-description" placeholder="Add details or notes..."></textarea>
             </div>
             
-        </main>
+            <div class="form-group" id="subtasks-container">
+                <label><i class="fas fa-list-ul"></i> Subtasks</label>
+                <ul class="subtask-list" id="subtask-list">
+                    </ul>
+                <div class="subtask-input-group">
+                    <input type="text" id="new-subtask-text" placeholder="Add a new subtask">
+                    <button type="button" class="btn add-subtask-btn"><i class="fas fa-plus"></i></button>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn delete-btn hidden" id="delete-task-btn">
+                    <i class="fas fa-trash-alt"></i> Delete
+                </button>
+                <button type="submit" class="btn save-btn" id="save-task-btn">
+                    <i class="fas fa-save"></i> Save Task
+                </button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, arrayUnion, arrayRemove, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables provided by the Canvas environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        let db = null;
-        let auth = null;
-        let userId = null;
-        let isAuthReady = false;
-
-        if (firebaseConfig) {
-            setLogLevel('Debug');
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-
-            // Authentication setup
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                } else {
-                    try {
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (error) {
-                        console.error("Firebase auth error:", error);
-                    }
-                }
-                // Mark authentication as ready
-                isAuthReady = true;
-                if (window.initializeAppLogic) {
-                    // Call the main initialization function in script.js once Firebase is ready
-                    window.initializeAppLogic(db, auth, userId, isAuthReady, appId);
-                }
-            });
-        }
-    </script>
+            </main>
+    </div>
     
     <script src="script.js"></script>
 </body>
