@@ -526,6 +526,12 @@ textarea#task-description {
 #corkboard[data-tool="select"] {
     cursor: default; /* Standard pointer for selecting/moving */
 }
+/* Cursors for drawing tools */
+#corkboard[data-tool="marker"],
+#corkboard[data-tool="highlight"],
+#corkboard[data-tool="eraser"] {
+    cursor: crosshair;
+}
 
 /* Draggable Elements (Notes, Pictures) */
 .draggable {
@@ -542,7 +548,16 @@ textarea#task-description {
     top: 0;
     left: 0;
     z-index: 10;
+    /* FIX: Make canvas respond to drawing tools */
+    pointer-events: none;
 }
+/* FIX: Only enable pointer events on canvas when a drawing tool is active */
+#corkboard[data-tool="marker"] #annotation-canvas,
+#corkboard[data-tool="highlight"] #annotation-canvas,
+#corkboard[data-tool="eraser"] #annotation-canvas {
+    pointer-events: auto;
+}
+
 
 /* --- Main Toolbars --- */
 #main-toolbar {
@@ -613,6 +628,15 @@ textarea#task-description {
     border-color: #6a40e1;
 }
 
+/* FIX: Class to hide the actual color input */
+.hidden-color-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
 /* Drawing Options */
 .draw-options input[type="range"] {
     width: 80px;
@@ -661,14 +685,29 @@ textarea#task-description {
 }
 
 /* Font styles for content */
-.sticky-note-content[data-font="marker"] { font-family: 'Permanent Marker', cursive; }
-.sticky-note-content[data-font="roboto"] { font-family: 'Roboto', sans-serif; }
-.sticky-note-content[data-font="inter"] { font-family: 'Inter', sans-serif; }
+.sticky-note[data-font="marker"] .sticky-note-content { 
+    font-family: 'Permanent Marker', cursive; 
+} 
+.sticky-note[data-font="roboto"] .sticky-note-content { 
+    font-family: 'Roboto', sans-serif; 
+}
+.sticky-note[data-font="inter"] .sticky-note-content { 
+    font-family: 'Inter', sans-serif; 
+} 
 
-/* Font size styles */
-.sticky-note-content[data-size="small"] { font-size: 14px; }
-.sticky-note-content[data-size="medium"] { font-size: 16px; }
-.sticky-note-content[data-size="large"] { font-size: 18px; }
+/* Corrected and Expanded Font size styles */
+.sticky-note[data-size="small"] .sticky-note-content { 
+    font-size: 14px; 
+}
+.sticky-note[data-size="medium"] .sticky-note-content { 
+    font-size: 16px; 
+}
+.sticky-note[data-size="large"] .sticky-note-content { 
+    font-size: 18px; 
+}
+.sticky-note[data-size="x-large"] .sticky-note-content { /* Added missing x-large size */
+    font-size: 24px; 
+}
 
 /* Sticky Note Resizing */
 .resize-handle {
@@ -825,30 +864,6 @@ textarea#task-description {
 .sticky-note[data-drawing="true"] .note-canvas {
     pointer-events: auto; /* Active drawing state */
     z-index: 10; /* Above content */
-}
-
-.sticky-note[data-font="marker"] .sticky-note-content { 
-    font-family: 'Permanent Marker', cursive; 
-} 
-.sticky-note[data-font="roboto"] .sticky-note-content { 
-    font-family: 'Roboto', sans-serif; 
-}
-.sticky-note[data-font="inter"] .sticky-note-content { 
-    font-family: 'Inter', sans-serif; 
-} 
-
-/* Corrected and Expanded Font size styles */
-.sticky-note[data-size="small"] .sticky-note-content { 
-    font-size: 14px; 
-}
-.sticky-note[data-size="medium"] .sticky-note-content { 
-    font-size: 16px; 
-}
-.sticky-note[data-size="large"] .sticky-note-content { 
-    font-size: 18px; 
-}
-.sticky-note[data-size="x-large"] .sticky-note-content { /* Added missing x-large size */
-    font-size: 24px; 
 }
 
 .sticky-note-content ul, 

@@ -67,7 +67,6 @@ const SIZE_DISPLAY_TEXT = {
     'small': 'Small',
     'medium': 'Medium',
     'large': 'Large',
-    'x-large': 'X-Large'
 };
 
 /** Converts a size key (small, medium, etc.) to a pixel value for toolbar preview */
@@ -76,7 +75,6 @@ function getFontSizeInPx(sizeKey) {
         case 'small': return '12px';
         case 'medium': return '16px';
         case 'large': return '20px';
-        case 'x-large': return '24px';
         default: return '16px';
     }
 }
@@ -92,7 +90,6 @@ const matrixContainer = document.getElementById('matrix-container');
 const allTasksContainer = document.getElementById('all-tasks-container');
 const allTasksList = document.getElementById('all-tasks-list');
 const newTaskButton = document.getElementById('new-task-btn');
-const stickyNoteSettings = document.getElementById('sticky-note-settings');
 
 // Menu item selectors
 const matrixMenuItem = document.getElementById('matrix-menu-item');
@@ -337,11 +334,7 @@ function openModal(taskId = null, quadrant = 'do') {
         document.getElementById('task-due-date').value = task.dueDate || '';
     }
     
-    if (stickyNoteSettings) {
-        stickyNoteSettings.classList.add('hidden');
-    }
-
-    if(deleteTaskBtn) deleteTaskBtn.classList.toggle('hidden', !taskId);
+    if (deleteTaskBtn) deleteTaskBtn.classList.toggle('hidden', !taskId);
     modal.style.display = 'flex';
 }
 
@@ -433,14 +426,18 @@ function createStickyNote(note) {
 
     // Update note in state when content changes
     content.addEventListener('input', () => {
-        const updatedNote = stickyNotes.find(n => n.id === note.id);
+        const updatedNote = stickyNotes.find(n => n.id == note.id);
         if (updatedNote) {
             updatedNote.noteContent = content.innerHTML;
+            // No need to call saveStickyNote here, it will be saved on blur
         }
     });
     content.addEventListener('blur', () => {
         // Save note on blur to ensure content is up-to-date
-        saveStickyNote(stickyNotes.find(n => n.id === note.id));
+        const noteToSave = stickyNotes.find(n => n.id == note.id);
+        if (noteToSave) {
+            saveStickyNote(noteToSave);
+        }
     });
 
     return element;
@@ -478,8 +475,8 @@ function renderStickyWallNotes() {
             noteEl.setAttribute('data-size', note.noteSize || 'medium');
             
             const contentEl = noteEl.querySelector('.sticky-note-content');
-            if (contentEl && contentEl.innerHTML !== (note.noteContent || note.title)) {
-                 contentEl.innerHTML = note.noteContent || note.title;
+            if (contentEl && document.activeElement !== contentEl && contentEl.innerHTML !== (note.noteContent || '')) {
+                 contentEl.innerHTML = note.noteContent || '';
             }
         }
     });
@@ -494,11 +491,13 @@ function updateTextStyleButtonStates() {
     if (!activeNote || isDrawingOnNote) return;
 
     const contentEl = activeNote.querySelector('.sticky-note-content');
-    if (!contentEl) return;
-
-    // Must focus the contenteditable area for queryCommandState to work
-    // Note: Focusing here can interfere with selection, but is necessary for queryCommandState
-    // contentEl.focus(); 
+    if (!contentEl || !contentEl.contains(document.getSelection()?.anchorNode)) {
+        // Selection is not inside the active note's content
+        document.querySelectorAll('#note-floating-toolbar .note-tool-btn[data-text-style]').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        return;
+    }
 
     document.querySelectorAll('#note-floating-toolbar .note-tool-btn[data-text-style]').forEach(btn => {
         const style = btn.dataset.textStyle;
@@ -566,9 +565,6 @@ function updateNoteToolbarState() {
     document.querySelector(`.note-font-option[data-font="${currentFont}"]`)?.classList.add('active');
     document.querySelector(`.note-size-option[data-size="${currentSize}"]`)?.classList.add('active');
     
-    // 6. Hide all dropdowns (will be shown on explicit click)
-    // document.querySelectorAll('.note-dropdown-menu').forEach(m => m.classList.remove('visible'));
-
     // 7. Update drawing toggle button state
     noteDrawToggleBtn?.classList.toggle('active', isDrawingOnNote);
 
@@ -661,10 +657,23 @@ function startNoteDraw(e) {
 function drawOnNote(e) {
     if (!noteDrawing || !currentNoteCtx) return;
     
-    currentNoteCtx.strokeStyle = currentStrokeColor; // Use main toolbar's color
-    currentNoteCtx.lineWidth = currentStrokeWidth * 0.5; // Smaller stroke for notes
+    // --- FIX: Use main toolbar settings for drawing on note ---
+    currentNoteCtx.strokeStyle = currentStrokeColor;
+    currentNoteCtx.lineWidth = currentStrokeWidth * 0.5; // Make note drawing a bit finer
     currentNoteCtx.lineCap = 'round';
-    currentNoteCtx.globalAlpha = 1;
+    
+    // --- FIX: Apply tool logic ---
+    if(currentTool === 'eraser') {
+        currentNoteCtx.globalCompositeOperation = 'destination-out';
+        currentNoteCtx.globalAlpha = 1.0;
+    } else if (currentTool === 'highlight') {
+        currentNoteCtx.globalCompositeOperation = 'multiply';
+        currentNoteCtx.globalAlpha = currentOpacity;
+    } else { // marker
+        currentNoteCtx.globalCompositeOperation = 'source-over';
+        currentNoteCtx.globalAlpha = currentOpacity;
+    }
+    // --- END FIX ---
     
     currentNoteCtx.lineTo(e.offsetX, e.offsetY);
     currentNoteCtx.stroke();
@@ -675,6 +684,8 @@ function endNoteDraw() {
     if (noteDrawing) {
         noteDrawing = false;
         currentNoteCtx.closePath();
+        // --- FIX: Reset composite operation after drawing ---
+        currentNoteCtx.globalCompositeOperation = 'source-over';
     }
 }
 
@@ -684,21 +695,20 @@ let activeHandle = null;
 let initialNoteWidth, initialNoteHeight, initialMouseX, initialMouseY, initialNoteX, initialNoteY;
 
 function startDragOrResize(e) {
-    if (e.button !== 0 || drawing || !corkboard) return; 
+    if (e.button !== 0 || !corkboard) return; 
     
     // Handle dismissal of dropdowns if clicking outside
     if (!e.target.closest('#note-floating-toolbar')) {
         document.querySelectorAll('.note-dropdown-menu').forEach(m => m.classList.remove('visible'));
     }
     
-    // NOTE: Keep toolbar visible until dragging/resizing is confirmed to be starting
-    // noteFloatingToolbar?.classList.add('hidden'); 
-
+    const clickedNote = e.target.closest('.sticky-note');
+    
     // 1. Resizing check
     if (e.target.classList.contains('resize-handle')) {
         isResizing = true;
         activeHandle = e.target;
-        activeNote = e.target.closest('.sticky-note');
+        activeNote = clickedNote;
         
         initialNoteWidth = activeNote.offsetWidth;
         initialNoteHeight = activeNote.offsetHeight;
@@ -716,7 +726,6 @@ function startDragOrResize(e) {
     }
     
     // 2. Note Drawing start check
-    const clickedNote = e.target.closest('.sticky-note');
     if (isDrawingOnNote && clickedNote === activeNote && e.target.classList.contains('note-canvas')) {
         startNoteDraw(e);
         return;
@@ -725,16 +734,17 @@ function startDragOrResize(e) {
     // 3. Dragging check (on the note or its content/handles if not drawing)
     if (clickedNote && currentTool === 'select' && !isDrawingOnNote) {
         
-        // --- FIX: Force ContentEditable to Blur for reliable dragging ---
         const contentArea = clickedNote.querySelector('.sticky-note-content');
-        if (contentArea) {
-            // Check if the click originated from within the content area
-            if (contentArea.contains(e.target)) {
-                // If the click is on the text content, blur it to stop text selection/editing
-                contentArea.blur(); 
+        if (contentArea.contains(e.target)) {
+            // If the click is on the text content, don't drag, allow text selection
+            // But if it's already focused, a drag *outside* the text selection should drag the note
+            if (document.activeElement === contentArea) {
+                 // This logic is tricky. For now, if content is the target, we allow text interaction.
+                 // A drag handle (like a header) is a better UX pattern.
+                 // Let's assume for now that if the target is content, we don't drag.
+                 return;
             }
         }
-        // --- END FIX ---
 
         activeDraggable = clickedNote;
         isMoving = true;
@@ -760,17 +770,39 @@ function startDragOrResize(e) {
         return;
     }
     
-    // 4. Main Canvas Drawing (Marker/Highlighter)
-    if ((currentTool === 'marker' || currentTool === 'highlight') && e.target === canvas) {
+    // 4. Main Canvas Drawing (Marker/Highlighter/Eraser)
+    if (currentTool !== 'select' && !isDrawingOnNote && e.target === canvas) {
         drawing = true;
         const newStroke = {
             tool: currentTool,
             color: currentStrokeColor,
             width: currentStrokeWidth,
-            opacity: currentOpacity,
+            opacity: currentTool === 'highlight' ? 0.3 : currentOpacity, // Special opacity for highlighter
             points: [{ x: e.offsetX, y: e.offsetY }]
         };
         strokes.push(newStroke);
+        
+        // --- FIX: Apply correct context settings on start ---
+        ctx.strokeStyle = newStroke.color;
+        ctx.lineWidth = newStroke.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        if (currentTool === 'highlight') {
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.globalAlpha = newStroke.opacity;
+        } else if (currentTool === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.globalAlpha = 1.0;
+        } else { // marker
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = newStroke.opacity;
+        }
+        
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+        // --- END FIX ---
+        
         e.preventDefault();
         return;
     }
@@ -786,10 +818,10 @@ function startDragOrResize(e) {
 
 function dragOrResize(e) {
     if (!corkboard) return;
-    e.preventDefault();
     
     // 1. Resizing Logic
     if (isResizing && activeNote) {
+        e.preventDefault();
         const dx = e.clientX - initialMouseX;
         const dy = e.clientY - initialMouseY;
         let newWidth = initialNoteWidth;
@@ -846,6 +878,7 @@ function dragOrResize(e) {
 
     // 2. Dragging Logic
     if (isMoving && activeDraggable) {
+        e.preventDefault();
         const dx = e.clientX - lastX;
         const dy = e.clientY - lastY;
         
@@ -868,17 +901,48 @@ function dragOrResize(e) {
         return;
     }
     
-    // 3. Main Canvas Drawing Logic
+    // 3. Main Canvas Drawing Logic (THE FIX)
     if (drawing && e.target === canvas) {
+        e.preventDefault();
         const currentStroke = strokes[strokes.length - 1];
-        currentStroke.points.push({ x: e.offsetX, y: e.offsetY }); 
-        // Redrawing logic is assumed to be handled elsewhere (redrawAllStrokes)
-        // ... (drawing logic) ...
+        
+        // --- FIX: Apply context settings on every draw event ---
+        // This ensures the settings are correct even if sliders change mid-draw
+        ctx.strokeStyle = currentStroke.color;
+        ctx.lineWidth = currentStroke.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        if (currentStroke.tool === 'highlight') {
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.globalAlpha = currentStroke.opacity;
+        } else if (currentStroke.tool === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.globalAlpha = 1.0;
+        } else { // marker
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = currentStroke.opacity;
+        }
+        // --- END FIX ---
+        
+        // Draw segment
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+        
+        // Add point to stroke
+        const newPoint = { x: e.offsetX, y: e.offsetY };
+        currentStroke.points.push(newPoint);
+        
+        // Begin a new path segment for the next mouse move
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+        
         return;
     }
     
     // 4. Note Drawing Logic
     if (noteDrawing && activeNote) {
+        e.preventDefault();
         drawOnNote(e);
     }
 }
@@ -929,10 +993,15 @@ function endDragOrResize(e) {
         }
     }
     
-    // 3. Main Canvas Drawing End
+    // 3. Main Canvas Drawing End (THE FIX)
     if (drawing) {
         drawing = false;
-        // Save strokes logic here
+        // Reset context
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        // Redraw all strokes cleanly to fix any overlap issues
+        redrawAllStrokes();
+        // Save strokes to localStorage logic would go here
     }
     
     // 4. Note Drawing End
@@ -951,10 +1020,32 @@ function handleToolClick(e) {
     const tool = btn.getAttribute('data-tool');
     if (!tool) return;
     
-    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    // Deselect all tools
+    document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
     
-    currentTool = tool;
+    // Activate the clicked tool
+    if (tool !== 'add-note') { // 'add-note' is a one-time action, not a mode
+        btn.classList.add('active');
+        currentTool = tool;
+        if(corkboard) corkboard.setAttribute('data-tool', tool); // FIX: Set data-tool on corkboard
+    } else {
+        // If 'add-note' is clicked, reset tool to 'select'
+        document.querySelector('.tool-btn[data-tool="select"]')?.classList.add('active');
+        currentTool = 'select';
+        if(corkboard) corkboard.setAttribute('data-tool', 'select'); // FIX: Set data-tool on corkboard
+    }
+    
+    // --- FIX: Apply correct settings when a tool is selected ---
+    if (tool === 'marker') {
+        currentStrokeColor = document.getElementById('stroke-color-input').value;
+        currentOpacity = parseFloat(document.getElementById('opacity-slider').value);
+    } else if (tool === 'highlight') {
+        currentOpacity = 0.3; // Force highlighter opacity
+    } else if (tool === 'eraser') {
+        currentOpacity = 1.0;
+    }
+    // --- END FIX ---
+    
     
     // Remove selection and hide toolbar if switching tools
     if (tool !== 'select' && activeNote) {
@@ -982,7 +1073,8 @@ function handleToolClick(e) {
             canvasX: newNoteX,
             canvasY: newNoteY,
             noteWidth: 250,
-            noteHeight: 250
+            noteHeight: 250,
+            noteCanvasData: null // Ensure new notes start with no drawing
         };
         
         saveStickyNote(newNoteData); 
@@ -1092,6 +1184,48 @@ function handleToolbarClicks(e) {
     }
 }
 
+// --- FIX: Main Canvas Drawing Engine ---
+/**
+ * Clears the main canvas and redraws all strokes from the 'strokes' array.
+ */
+function redrawAllStrokes() {
+    if (!ctx || !canvas) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+    
+    strokes.forEach(stroke => {
+        ctx.beginPath();
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = stroke.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // --- FIX: Set opacity/composite op based on the *saved tool* ---
+        if (stroke.tool === 'highlight') {
+            ctx.globalCompositeOperation = 'multiply'; // Good for highlighting
+            ctx.globalAlpha = stroke.opacity;
+        } else if (stroke.tool === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.globalAlpha = 1.0;
+        } else { // 'marker'
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = stroke.opacity;
+        }
+        // --- END FIX ---
+        
+        if (stroke.points.length < 2) return; // Not enough points to draw
+
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length; i++) {
+            ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
+        ctx.stroke();
+    });
+    
+    // Reset composite operation and alpha for future operations
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+}
+
 // --- Sticky Wall Initialization ---
 function initializeStickyWall() {
     if (!canvas || !corkboard) return;
@@ -1102,7 +1236,8 @@ function initializeStickyWall() {
     canvas.height = corkboard.scrollHeight;
     ctx = canvas.getContext('2d');
     
-    // Redraw strokes logic here (placeholder)
+    // FIX: Redraw any existing strokes (e.g., loaded from storage)
+    redrawAllStrokes();
     
     renderStickyWallNotes();
 }
@@ -1183,14 +1318,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const storedTasks = localStorage.getItem('tasks');
     if (storedTasks) {
         tasks = JSON.parse(storedTasks);
-        taskIdCounter = parseInt(localStorage.getItem('taskIdCounter')) || 1;
+        taskIdCounter = parseInt(localStorage.getItem('taskIdCounter')) || (tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1);
     }
     
     // [DECOUPLED] Load sticky notes from localStorage
     const storedNotes = localStorage.getItem('stickyNotes');
     if (storedNotes) {
         stickyNotes = JSON.parse(storedNotes);
-        stickyNoteIdCounter = parseInt(localStorage.getItem('stickyNoteIdCounter')) || 1;
+        stickyNoteIdCounter = parseInt(localStorage.getItem('stickyNoteIdCounter')) || (stickyNotes.length > 0 ? Math.max(...stickyNotes.map(n => n.id)) + 1 : 1);
     }
 
     // Set up initial sticky wall context
@@ -1295,16 +1430,43 @@ document.addEventListener('DOMContentLoaded', () => {
     noteFontBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(noteFontMenu); });
     noteSizeBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(noteSizeMenu); });
 
-    // Drawing options (for main toolbar)
+    // --- FIX: Drawing options (for main toolbar) ---
     document.getElementById('stroke-width-slider')?.addEventListener('input', (e) => {
         currentStrokeWidth = parseFloat(e.target.value);
     });
     document.getElementById('opacity-slider')?.addEventListener('input', (e) => {
         currentOpacity = parseFloat(e.target.value);
+        // If user changes opacity, assume they want the marker tool
+        if (currentTool !== 'marker') {
+            handleToolClick({ target: document.querySelector('.tool-btn[data-tool="marker"]') });
+        }
+    });
+    
+    // --- FIX: Wire up color indicator and input ---
+    document.getElementById('current-color-indicator')?.addEventListener('click', () => {
+        document.getElementById('stroke-color-input')?.click();
     });
     document.getElementById('stroke-color-input')?.addEventListener('input', (e) => {
         currentStrokeColor = e.target.value;
+        // Update the indicator's background
+        document.getElementById('current-color-indicator').style.backgroundColor = currentStrokeColor;
+        // If user changes color, switch to marker tool
+        if (currentTool !== 'marker') {
+             handleToolClick({ target: document.querySelector('.tool-btn[data-tool="marker"]') });
+        }
     });
+    
+    // --- FIX: Wire up Undo/Clear buttons ---
+    document.getElementById('undo-btn')?.addEventListener('click', () => {
+        strokes.pop(); // Remove last stroke
+        redrawAllStrokes(); // Redraw
+    });
+    document.getElementById('clear-all-btn')?.addEventListener('click', () => {
+        strokes = []; // Clear all strokes
+        redrawAllStrokes(); // Redraw (which will be empty)
+    });
+    // --- END FIX ---
+
 
     // Initial render and view set
     renderAllViews();
