@@ -1082,62 +1082,184 @@ function handleToolbarClicks(e) {
     }
 }
 
-// --- Canvas utilities (including washi pattern and torn edge) ---
+// --- Canvas utilities (including washi pattern and ripped torn edge effect) ---
+
+/**
+ * Safe helper to create a pattern from a small pattern-canvas using the main ctx when available.
+ * Returns a CanvasPattern or a fallback color string.
+ */
+function createPatternSafe(patternCanvas) {
+    try {
+        const mainCtx = ctx || (canvas ? canvas.getContext('2d') : null);
+        if (!mainCtx) return '#fdfdfd';
+        return mainCtx.createPattern(patternCanvas, 'repeat');
+    } catch (e) {
+        return '#fdfdfd';
+    }
+}
+
 function makePatternForWashi(patternName) {
     const patternCanvas = document.createElement('canvas');
     patternCanvas.width = 20;
     patternCanvas.height = 20;
     const pctx = patternCanvas.getContext('2d');
 
+    // subtle paper base (off-white)
+    pctx.fillStyle = '#fbfaf6';
+    pctx.fillRect(0, 0, patternCanvas.width, patternCanvas.height);
+
     if (patternName === 'diagonal') {
-        pctx.strokeStyle = '#9b8f8f';
+        pctx.strokeStyle = '#b7b0ac';
         pctx.lineWidth = 2;
         pctx.beginPath();
-        pctx.moveTo(0, 20);
-        pctx.lineTo(20, 0);
+        pctx.moveTo(0, patternCanvas.height);
+        pctx.lineTo(patternCanvas.width, 0);
         pctx.stroke();
     } else if (patternName === 'dots') {
-        pctx.fillStyle = '#9b8f8f';
-        for (let y = 5; y < 20; y += 10) {
-            for (let x = 5; x < 20; x += 10) {
+        pctx.fillStyle = '#b7b0ac';
+        for (let y = 5; y < patternCanvas.height; y += 10) {
+            for (let x = 5; x < patternCanvas.width; x += 10) {
                 pctx.beginPath();
                 pctx.arc(x, y, 1.5, 0, Math.PI * 2);
                 pctx.fill();
             }
         }
     } else if (patternName === 'grid') {
-        pctx.strokeStyle = '#cfcfcf';
+        pctx.strokeStyle = '#d0cfcf';
         pctx.lineWidth = 1;
-        for (let i = 0; i < 20; i += 5) {
+        for (let i = 0; i < patternCanvas.width; i += 5) {
             pctx.beginPath();
             pctx.moveTo(i, 0);
-            pctx.lineTo(i, 20);
+            pctx.lineTo(i, patternCanvas.height);
             pctx.moveTo(0, i);
-            pctx.lineTo(20, i);
+            pctx.lineTo(patternCanvas.width, i);
             pctx.stroke();
         }
-    } else {
-        pctx.fillStyle = '#fdfdfd';
-        pctx.fillRect(0, 0, 20, 20);
+    } else { // plain
+        // already filled with base
     }
 
-    return ctx.createPattern(patternCanvas, 'repeat');
+    return createPatternSafe(patternCanvas);
 }
 
-function drawTornEdge(cx, cy, length, angle) {
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(angle);
-    ctx.beginPath();
-    // jagged line along x axis
-    const step = Math.max(2, Math.floor(length / 6));
-    for (let i = 0; i <= length; i += step) {
-        const rand = (Math.random() - 0.5) * (step * 0.6);
-        ctx.lineTo(i, rand);
+/**
+ * Create a ripped/torn mask on an offscreen context near the edges.
+ * We'll 'cut' into the tape to produce transparent jagged edges using destination-out.
+ *
+ * offCtx: offscreen ctx
+ * length: length of jagged cut (in px)
+ * cornerX, cornerY: coordinates in offscreen canvas where the torn cut should be drawn
+ * angle: angle in radians of the tape direction (so torn aligns)
+ */
+function cutRippedEdge(offCtx, cornerX, cornerY, angle, maxLength) {
+    offCtx.save();
+    offCtx.translate(cornerX, cornerY);
+    offCtx.rotate(angle);
+
+    // draw several overlapping small semicircles / jagged shapes and use destination-out to subtract
+    offCtx.globalCompositeOperation = 'destination-out';
+    offCtx.fillStyle = 'rgba(0,0,0,1)';
+
+    const slices = 6;
+    const step = Math.max(2, Math.floor(maxLength / slices));
+    for (let i = 0; i < maxLength; i += step) {
+        const r = 2 + Math.random() * (step * 0.9);
+        const ox = i + (Math.random() - 0.5) * step;
+        const oy = (Math.random() - 0.5) * step * 0.6;
+        offCtx.beginPath();
+        offCtx.ellipse(ox, oy, r, r * (0.6 + Math.random() * 0.6), Math.random() * Math.PI, 0, Math.PI * 2);
+        offCtx.fill();
     }
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+
+    // add a feathered semi-transparent removal to soften
+    offCtx.globalCompositeOperation = 'destination-out';
+    offCtx.beginPath();
+    offCtx.moveTo(0, 0);
+    offCtx.lineTo(maxLength, -maxLength * 0.15);
+    offCtx.lineTo(maxLength, maxLength * 0.15);
+    offCtx.closePath();
+    offCtx.fill();
+
+    offCtx.restore();
+}
+
+/**
+ * Draws a washi tape segment with pattern + base color overlay + ripped ends.
+ * Implementation uses an offscreen canvas where we draw rotated horizontal tape and then blit to main ctx.
+ */
+function drawWashiOnMain(stroke) {
+    if (!ctx || !canvas) return;
+
+    // Calculate vector
+    const sx = stroke.start.x, sy = stroke.start.y;
+    const ex = stroke.end.x, ey = stroke.end.y;
+    const dx = ex - sx, dy = ey - sy;
+    const length = Math.sqrt(dx*dx + dy*dy);
+    if (length < 2) return;
+
+    const angle = Math.atan2(dy, dx);
+
+    const padding = Math.ceil(stroke.width * 2); // padding around tape for torn edges
+    const offW = Math.ceil(length + padding * 2);
+    const offH = Math.ceil(stroke.width + padding * 2);
+
+    // Offscreen canvas
+    const off = document.createElement('canvas');
+    off.width = offW;
+    off.height = offH;
+    const offCtx = off.getContext('2d');
+
+    // Move origin to padding, mid-line
+    offCtx.translate(padding, offH / 2);
+
+    // create pattern
+    const pattern = makePatternForWashi(stroke.pattern || 'diagonal');
+
+    // 1) fill a thick line with pattern
+    offCtx.save();
+    offCtx.beginPath();
+    offCtx.lineCap = 'butt';
+    offCtx.lineJoin = 'miter';
+    offCtx.strokeStyle = pattern;
+    offCtx.lineWidth = stroke.width;
+    offCtx.moveTo(0, 0);
+    offCtx.lineTo(length, 0);
+    offCtx.stroke();
+    offCtx.restore();
+
+    // 2) subtle translucent base overlay to give paper look
+    offCtx.save();
+    offCtx.globalAlpha = 0.12;
+    offCtx.strokeStyle = stroke.color || '#000';
+    offCtx.lineWidth = stroke.width;
+    offCtx.beginPath();
+    offCtx.moveTo(0, 0);
+    offCtx.lineTo(length, 0);
+    offCtx.stroke();
+    offCtx.restore();
+
+    // 3) create ripped edges by cutting (destination-out) small jagged shapes at start & end
+    const tearLen = Math.min(28, Math.max(12, stroke.width * 1.6));
+    // cut at start (angle reversed because in offscreen space horizontal line goes +x)
+    cutRippedEdge(offCtx, 0, 0, Math.PI, tearLen);
+    // cut at end
+    cutRippedEdge(offCtx, length, 0, 0, tearLen);
+
+    // 4) apply a subtle shadow along bottom to lift the tape
+    offCtx.save();
+    offCtx.globalCompositeOperation = 'source-over';
+    offCtx.fillStyle = 'rgba(0,0,0,0.06)';
+    offCtx.beginPath();
+    // small rectangle under tape area
+    offCtx.rect(0, stroke.width / 2 + 2, length, 2);
+    offCtx.fill();
+    offCtx.restore();
+
+    // 5) Draw the offscreen canvas onto main canvas with rotation and positioning
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle);
+    ctx.drawImage(off, -padding, -offH/2);
     ctx.restore();
 }
 
@@ -1146,76 +1268,48 @@ function redrawAllStrokes() {
     if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Draw non-washi strokes first (so washi can overlap them if needed)
     strokes.forEach(stroke => {
-        if (stroke.tool === 'washi-tape') {
-            // draw straight tape between start and end
-            ctx.save();
-            // Create pattern
-            const pattern = makePatternForWashi(stroke.pattern || 'diagonal');
-            ctx.strokeStyle = pattern;
-            ctx.lineWidth = stroke.width;
-            ctx.lineCap = 'butt';
-            ctx.lineJoin = 'miter';
-            ctx.globalAlpha = stroke.opacity !== undefined ? stroke.opacity : 1.0;
-            ctx.globalCompositeOperation = 'source-over';
+        if (stroke.tool === 'washi-tape') return; // skip here
+        ctx.beginPath();
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = stroke.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-            ctx.beginPath();
-            ctx.moveTo(stroke.start.x, stroke.start.y);
-            ctx.lineTo(stroke.end.x, stroke.end.y);
-            ctx.stroke();
-
-            // Draw subtle base color overlay to simulate tape
-            ctx.globalAlpha = 0.12;
-            ctx.strokeStyle = stroke.color || '#000';
-            ctx.lineWidth = stroke.width;
-            ctx.beginPath();
-            ctx.moveTo(stroke.start.x, stroke.start.y);
-            ctx.lineTo(stroke.end.x, stroke.end.y);
-            ctx.stroke();
-
-            // Torn edges
-            const dx = stroke.end.x - stroke.start.x;
-            const dy = stroke.end.y - stroke.start.y;
-            const angle = Math.atan2(dy, dx);
-
-            // small offset so the torn edge sits at the tape end
-            drawTornEdge(stroke.start.x, stroke.start.y, Math.min(28, stroke.width * 1.5), angle - Math.PI);
-            drawTornEdge(stroke.end.x - Math.cos(angle) * 2, stroke.end.y - Math.sin(angle) * 2, Math.min(28, stroke.width * 1.5), angle);
-
-            ctx.restore();
+        if (stroke.tool === 'highlight') {
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.globalAlpha = stroke.opacity;
+        } else if (stroke.tool === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.globalAlpha = 1.0;
         } else {
-            ctx.beginPath();
-            ctx.strokeStyle = stroke.color;
-            ctx.lineWidth = stroke.width;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-
-            if (stroke.tool === 'highlight') {
-                ctx.globalCompositeOperation = 'multiply';
-                ctx.globalAlpha = stroke.opacity;
-            } else if (stroke.tool === 'eraser') {
-                ctx.globalCompositeOperation = 'destination-out';
-                ctx.globalAlpha = 1.0;
-            } else {
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.globalAlpha = stroke.opacity;
-            }
-
-            if (!stroke.points || stroke.points.length < 2) {
-                // single point
-                if (stroke.points && stroke.points.length === 1) {
-                    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-                    ctx.lineTo(stroke.points[0].x + 0.1, stroke.points[0].y + 0.1);
-                }
-            } else {
-                ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-                for (let i = 1; i < stroke.points.length; i++) {
-                    ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-                }
-            }
-            ctx.stroke();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = stroke.opacity;
         }
+
+        if (!stroke.points || stroke.points.length < 2) {
+            // single point
+            if (stroke.points && stroke.points.length === 1) {
+                ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                ctx.lineTo(stroke.points[0].x + 0.1, stroke.points[0].y + 0.1);
+            }
+        } else {
+            ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+        }
+        ctx.stroke();
     });
+
+    // Then draw washi strokes (so they appear on top)
+    for (let i = 0; i < strokes.length; i++) {
+        const stroke = strokes[i];
+        if (stroke.tool === 'washi-tape') {
+            drawWashiOnMain(stroke);
+        }
+    }
 
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
