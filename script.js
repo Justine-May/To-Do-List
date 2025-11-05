@@ -10,12 +10,10 @@ const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
  * @param {function(boolean): void} callback Function to call with true/false result.
  */
 window.showConfirm = function(message, callback) {
-    // Only proceed if the elements exist (handles case where this is used in an unmerged environment)
     if (!confirmDialog) {
         callback(window.confirm(message));
         return;
     }
-    
     confirmMessage.textContent = message;
     confirmDialog.classList.remove('hidden');
 
@@ -43,8 +41,8 @@ let firestoreUserId = null;
 let firestoreAppId = null;
 
 // Dedicated state for sticky notes (DECOUPLED)
-let stickyNotes = []; 
-let stickyNoteIdCounter = 1; 
+let stickyNotes = [];
+let stickyNoteIdCounter = 1;
 
 // --- CONSTANTS ---
 const STICKY_NOTE_BG_COLORS = {
@@ -69,7 +67,6 @@ const SIZE_DISPLAY_TEXT = {
     'large': 'Large',
 };
 
-/** Converts a size key (small, medium, etc.) to a pixel value for toolbar preview */
 function getFontSizeInPx(sizeKey) {
     switch (sizeKey) {
         case 'small': return '12px';
@@ -78,7 +75,6 @@ function getFontSizeInPx(sizeKey) {
         default: return '16px';
     }
 }
-// --- END NEW CONSTANTS ---
 
 // --- SELECTORS (Matrix & All Tasks) ---
 const modal = document.getElementById('task-details-modal');
@@ -97,7 +93,7 @@ const allTasksMenuItem = document.getElementById('all-tasks-menu-item');
 const stickyWallMenuItem = document.getElementById('sticky-wall-menu-item');
 
 // --- SELECTORS (Sticky Wall) ---
-const stickyWallContainer = document.getElementById('sticky-wall-container'); 
+const stickyWallContainer = document.getElementById('sticky-wall-container');
 const corkboard = document.getElementById('corkboard');
 const canvas = document.getElementById('annotation-canvas');
 let ctx; // Context for the main canvas
@@ -116,16 +112,25 @@ const currentFontDisplay = document.getElementById('current-font-display');
 const currentSizeDisplay = document.getElementById('current-size-display');
 const noteDrawToggleBtn = document.querySelector('.note-draw-toggle');
 
+// Washi toolbar (optional — script is defensive if toolbar is not present)
+const washiToolbar = document.getElementById('washi-toolbar');
+const washiPatternButtons = document.querySelectorAll('.pattern-option');
+
 // Drawing state (Main Canvas)
 let drawing = false;
-let currentTool = 'select'; 
-let currentStrokeColor = 'black'; 
-let currentStrokeWidth = 5; 
-let currentOpacity = 1; 
+let currentTool = 'select';
+let currentStrokeColor = 'black';
+let currentStrokeWidth = 5;
+let currentOpacity = 1;
 let strokes = []; // Array to store all drawn strokes
 let isMoving = false;
 let lastX, lastY;
 let activeDraggable = null;
+
+// Washi-specific state
+let isWashiDrawing = false;
+let washiStartX = 0, washiStartY = 0;
+let currentWashiPattern = (washiPatternButtons[0]?.dataset.pattern) || 'diagonal';
 
 // Drawing state (Note Canvas)
 let isDrawingOnNote = false;
@@ -134,14 +139,11 @@ let activeNote = null; // Currently selected sticky note DOM element
 const USERNAME = '@User';
 
 // --- TASK MANAGEMENT FUNCTIONS (Core) ---
-
-/** Adds or updates a task (DECOUPLED) */
 function saveTask(taskData) {
     let task;
     if (taskData.id) {
         task = tasks.find(t => t.id === taskData.id);
         if (task) {
-            // Only update core task properties
             task.title = taskData.title;
             task.description = taskData.description;
             task.dueDate = taskData.dueDate;
@@ -161,17 +163,16 @@ function saveTask(taskData) {
         };
         tasks.push(task);
     }
-    localStorage.setItem('tasks', JSON.stringify(tasks)); 
+    localStorage.setItem('tasks', JSON.stringify(tasks));
     localStorage.setItem('taskIdCounter', taskIdCounter);
     renderAllViews();
     return task;
 }
 
-/** Deletes a task by ID (DECOUPLED) */
 function deleteTask(id) {
     const initialLength = tasks.length;
     tasks = tasks.filter(t => t.id !== id);
-    
+
     if (tasks.length < initialLength) {
         localStorage.setItem('tasks', JSON.stringify(tasks));
         localStorage.setItem('taskIdCounter', taskIdCounter);
@@ -181,7 +182,6 @@ function deleteTask(id) {
     return false;
 }
 
-/** Toggles task completion status */
 function toggleTaskCompletion(id, isCompleted) {
     const task = tasks.find(t => t.id === id);
     if (task) {
@@ -192,10 +192,7 @@ function toggleTaskCompletion(id, isCompleted) {
     }
 }
 
-
 // --- STICKY NOTE MANAGEMENT FUNCTIONS (Decoupled Core) ---
-
-/** Adds or updates a sticky note (DECOUPLED) */
 function saveStickyNote(noteData) {
     let note;
     if (noteData.id) {
@@ -219,26 +216,24 @@ function saveStickyNote(noteData) {
         };
         stickyNotes.push(note);
     }
-    
-    localStorage.setItem('stickyNotes', JSON.stringify(stickyNotes)); 
+
+    localStorage.setItem('stickyNotes', JSON.stringify(stickyNotes));
     localStorage.setItem('stickyNoteIdCounter', stickyNoteIdCounter);
-    renderStickyWallNotes(); 
+    renderStickyWallNotes();
     return note;
 }
 
-/** Deletes a sticky note by ID (DECOUPLED) */
 function deleteStickyNote(id) {
     const initialLength = stickyNotes.length;
     stickyNotes = stickyNotes.filter(n => n.id !== id);
-    
-    // Remove it from the DOM
+
     const stickyNoteElement = document.querySelector(`.sticky-note[data-note-id="${id}"]`);
     if (stickyNoteElement) {
         stickyNoteElement.remove();
         activeNote = null;
-        if(noteFloatingToolbar) noteFloatingToolbar.classList.add('hidden');
+        if (noteFloatingToolbar) noteFloatingToolbar.classList.add('hidden');
     }
-    
+
     if (stickyNotes.length < initialLength) {
         localStorage.setItem('stickyNotes', JSON.stringify(stickyNotes));
         return true;
@@ -246,9 +241,7 @@ function deleteStickyNote(id) {
     return false;
 }
 
-// --- RENDERING & VIEW SWITCHING (Matrix/All Tasks logic omitted for brevity, see provided code for full implementation) ---
-
-/** Creates the HTML card for a task */
+// --- RENDERING & VIEW SWITCHING (Matrix/All Tasks logic omitted for brevity, but kept intact) ---
 function createTaskCard(task) {
     const li = document.createElement('li');
     li.className = 'task-item-card';
@@ -278,53 +271,49 @@ function createTaskCard(task) {
     return li;
 }
 
-/** Renders the Matrix View */
 function renderMatrixView() {
     quadrants.forEach(quadrantEl => {
         const quadrantId = quadrantEl.getAttribute('data-quadrant');
         const listEl = quadrantEl.querySelector('.task-list');
         if (!listEl) return;
-        listEl.innerHTML = ''; 
+        listEl.innerHTML = '';
 
         const quadrantTasks = tasks
             .filter(t => t.quadrant === quadrantId)
-            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+            .sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
 
         quadrantTasks.forEach(task => {
             listEl.appendChild(createTaskCard(task));
         });
     });
-    
+
     setupMatrixDragAndDrop();
 }
 
-/** Renders the All Tasks View */
 function renderAllTasksView() {
     if (!allTasksList) return;
     allTasksList.innerHTML = '';
-    const sortedTasks = tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+    const sortedTasks = tasks.slice().sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
 
     sortedTasks.forEach(task => {
         allTasksList.appendChild(createTaskCard(task));
     });
 }
 
-/** Renders both matrix and all-tasks views and notes */
 function renderAllViews() {
     renderMatrixView();
     renderAllTasksView();
-    renderStickyWallNotes(); 
+    renderStickyWallNotes();
 }
 
-/** Opens the modal for a new or existing task (CLEANED) */
 function openModal(taskId = null, quadrant = 'do') {
     if (!modal) return;
     taskForm.reset();
-    
-    document.getElementById('current-task-id').value = taskId || ''; 
+
+    document.getElementById('current-task-id').value = taskId || '';
 
     const task = taskId ? tasks.find(t => t.id === taskId) : null;
-    
+
     const initialQuadrant = task ? task.quadrant : quadrant;
     document.getElementById('task-priority').value = initialQuadrant;
 
@@ -333,65 +322,54 @@ function openModal(taskId = null, quadrant = 'do') {
         document.getElementById('task-description').value = task.description;
         document.getElementById('task-due-date').value = task.dueDate || '';
     }
-    
+
     if (deleteTaskBtn) deleteTaskBtn.classList.toggle('hidden', !taskId);
     modal.style.display = 'flex';
 }
 
-/** Closes the modal */
 function closeModal() {
     if (modal) modal.style.display = 'none';
 }
 
-
 function switchView(viewName) {
-    // Deactivate all containers and menu items
     document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.task-item').forEach(el => el.classList.remove('active'));
-    
-    // Hide sticky wall main toolbar by default
-    if(toolbar) toolbar.classList.add('hidden');
-    
-    // Hide floating note toolbar
+
+    if (toolbar) toolbar.classList.add('hidden');
     noteFloatingToolbar?.classList.add('hidden');
     if (activeNote) {
         activeNote.classList.remove('active-note');
         activeNote = null;
     }
 
-
-    // Activate the selected view and menu item
     let activeMenu = null;
     if (viewName === 'matrix') {
-        if(matrixContainer) matrixContainer.classList.add('active');
+        if (matrixContainer) matrixContainer.classList.add('active');
         activeMenu = matrixMenuItem;
     } else if (viewName === 'all-tasks') {
-        if(allTasksContainer) allTasksContainer.classList.add('active');
+        if (allTasksContainer) allTasksContainer.classList.add('active');
         activeMenu = allTasksMenuItem;
     } else if (viewName === 'sticky-wall') {
-        if(stickyWallContainer) stickyWallContainer.classList.add('active');
-        if(toolbar) toolbar.classList.remove('hidden'); // Show sticky wall toolbar
+        if (stickyWallContainer) stickyWallContainer.classList.add('active');
+        if (toolbar) toolbar.classList.remove('hidden');
         initializeStickyWall();
         activeMenu = stickyWallMenuItem;
     }
-    
+
     if (activeMenu) {
         activeMenu.classList.add('active');
     }
-    
+
     currentView = viewName;
     renderAllViews();
 }
 
-
 // --- STICKY WALL CORE LOGIC ---
 
-// --- Sticky Note DOM Management ---
-/** Creates the HTML card for a sticky note */
 function createStickyNote(note) {
     const element = document.createElement('div');
     element.className = 'draggable sticky-note';
-    element.setAttribute('data-note-id', note.id); 
+    element.setAttribute('data-note-id', note.id);
     element.setAttribute('data-font', note.noteFont || 'inter');
     element.setAttribute('data-size', note.noteSize || 'medium');
     element.style.backgroundColor = STICKY_NOTE_BG_COLORS[note.noteColor] || STICKY_NOTE_BG_COLORS.white;
@@ -408,10 +386,9 @@ function createStickyNote(note) {
         <div class="resize-handle handle-bl"></div>
         <div class="resize-handle handle-br"></div>
     `;
-    
+
     const content = element.querySelector('.sticky-note-content');
-    
-    // Restore drawing if data exists
+
     if (note.noteCanvasData) {
         const noteCanvas = element.querySelector('.note-canvas');
         const noteCtx = noteCanvas.getContext('2d');
@@ -421,19 +398,16 @@ function createStickyNote(note) {
         };
         img.src = note.noteCanvasData;
     }
-    
-    if(corkboard) corkboard.appendChild(element);
 
-    // Update note in state when content changes
+    if (corkboard) corkboard.appendChild(element);
+
     content.addEventListener('input', () => {
         const updatedNote = stickyNotes.find(n => n.id == note.id);
         if (updatedNote) {
             updatedNote.noteContent = content.innerHTML;
-            // No need to call saveStickyNote here, it will be saved on blur
         }
     });
     content.addEventListener('blur', () => {
-        // Save note on blur to ensure content is up-to-date
         const noteToSave = stickyNotes.find(n => n.id == note.id);
         if (noteToSave) {
             saveStickyNote(noteToSave);
@@ -443,56 +417,45 @@ function createStickyNote(note) {
     return element;
 }
 
-/** Renders or updates sticky notes on the corkboard */
 function renderStickyWallNotes() {
     if (!corkboard) return;
-    
-    // Get current sticky note elements on the board
+
     const currentNoteEls = Array.from(document.querySelectorAll('.sticky-note'));
-    
-    // 1. Remove notes that no longer exist in the state
+
     currentNoteEls.forEach(noteEl => {
-        const noteId = parseInt(noteEl.getAttribute('data-note-id')); 
+        const noteId = parseInt(noteEl.getAttribute('data-note-id'));
         if (!stickyNotes.some(n => n.id === noteId)) {
             noteEl.remove();
         }
     });
-    
-    // 2. Add or update notes from the state
-    stickyNotes.forEach(note => { 
-        let noteEl = document.querySelector(`.sticky-note[data-note-id="${note.id}"]`); 
+
+    stickyNotes.forEach(note => {
+        let noteEl = document.querySelector(`.sticky-note[data-note-id="${note.id}"]`);
         if (!noteEl) {
-            noteEl = createStickyNote(note); 
+            noteEl = createStickyNote(note);
         } else {
-            // Update existing note properties 
             noteEl.style.left = (note.canvasX || 0) + 'px';
             noteEl.style.top = (note.canvasY || 0) + 'px';
             noteEl.style.backgroundColor = STICKY_NOTE_BG_COLORS[note.noteColor] || STICKY_NOTE_BG_COLORS.white;
             noteEl.style.width = (note.noteWidth || 250) + 'px';
             noteEl.style.height = (note.noteHeight || 250) + 'px';
-            // Update the data attributes that CSS depends on
             noteEl.setAttribute('data-font', note.noteFont || 'inter');
             noteEl.setAttribute('data-size', note.noteSize || 'medium');
-            
+
             const contentEl = noteEl.querySelector('.sticky-note-content');
             if (contentEl && document.activeElement !== contentEl && contentEl.innerHTML !== (note.noteContent || '')) {
-                 contentEl.innerHTML = note.noteContent || '';
+                contentEl.innerHTML = note.noteContent || '';
             }
         }
     });
 }
 
-// --- Sticky Note Floating Toolbar Functions ---
-
-/** * Checks the current selection state in the active note's contenteditable 
- * area and updates the active class on the text style buttons.
- */
+// --- Floating toolbar helpers (unchanged) ---
 function updateTextStyleButtonStates() {
     if (!activeNote || isDrawingOnNote) return;
 
     const contentEl = activeNote.querySelector('.sticky-note-content');
     if (!contentEl || !contentEl.contains(document.getSelection()?.anchorNode)) {
-        // Selection is not inside the active note's content
         document.querySelectorAll('#note-floating-toolbar .note-tool-btn[data-text-style]').forEach(btn => {
             btn.classList.remove('active');
         });
@@ -502,8 +465,6 @@ function updateTextStyleButtonStates() {
     document.querySelectorAll('#note-floating-toolbar .note-tool-btn[data-text-style]').forEach(btn => {
         const style = btn.dataset.textStyle;
         let command = style;
-        
-        // Map data-text-style to execCommand names
         if (command === 'strike') command = 'strikeThrough';
         if (command === 'unordered-list') command = 'insertUnorderedList';
         if (command === 'ordered-list') command = 'insertOrderedList';
@@ -511,26 +472,17 @@ function updateTextStyleButtonStates() {
         let isActive = false;
         try {
             isActive = document.queryCommandState(command);
-        } catch (e) {
-            // Ignore commands that might not be supported/fail
-        }
-
+        } catch (e) {}
         btn.classList.toggle('active', isActive);
     });
 }
 
-/**
- * Updates the floating toolbar buttons (Color, Font, and Size display)
- * and the active state of the dropdown options for the selected note.
- */
 function updateNoteToolbarState() {
     if (!activeNote || !noteFloatingToolbar) return;
 
-    // 1. Get current font and size from activeNote data attributes
     const currentFont = activeNote.getAttribute('data-font') || 'inter';
     const currentSize = activeNote.getAttribute('data-size') || 'medium';
 
-    // 2. Update Color indicator/menu state
     const currentColor = activeNote.style.backgroundColor;
     const colorName = Object.keys(STICKY_NOTE_BG_COLORS).find(key => STICKY_NOTE_BG_COLORS[key].toLowerCase() === currentColor.toLowerCase());
 
@@ -539,11 +491,9 @@ function updateNoteToolbarState() {
     noteColorMenu.querySelectorAll('.note-color-option').forEach(opt => {
         opt.classList.toggle('active-color', opt.getAttribute('data-color') === colorName);
     });
-    
-    // 3. Update Font Button Display
+
     if (currentFontDisplay) {
         currentFontDisplay.textContent = FONT_DISPLAY_NAMES[currentFont];
-        // Apply the font to the button text itself for a visual preview
         if (currentFont === 'marker') {
             currentFontDisplay.style.fontFamily = "'Permanent Marker', cursive";
         } else if (currentFont === 'roboto') {
@@ -552,93 +502,71 @@ function updateNoteToolbarState() {
             currentFontDisplay.style.fontFamily = "'Inter', sans-serif";
         }
     }
-    
-    // 4. Update Size Button Display
+
     if (currentSizeDisplay) {
         currentSizeDisplay.textContent = SIZE_DISPLAY_TEXT[currentSize];
-        // Use the actual size for the button text itself for a size preview
         currentSizeDisplay.style.fontSize = getFontSizeInPx(currentSize);
     }
-    
-    // 5. Update the active state for font/size dropdown options
+
     document.querySelectorAll('.note-font-option, .note-size-option').forEach(el => el.classList.remove('active'));
     document.querySelector(`.note-font-option[data-font="${currentFont}"]`)?.classList.add('active');
     document.querySelector(`.note-size-option[data-size="${currentSize}"]`)?.classList.add('active');
-    
-    // 7. Update drawing toggle button state
-    noteDrawToggleBtn?.classList.toggle('active', isDrawingOnNote);
 
-    // 8. Update text style buttons (B, I, U, L)
+    noteDrawToggleBtn?.classList.toggle('active', isDrawingOnNote);
     updateTextStyleButtonStates();
 }
 
 function toggleDropdown(menu) {
     if (!menu) return;
     const isVisible = menu.classList.contains('visible');
-    // Hide all menus
     document.querySelectorAll('.note-dropdown-menu').forEach(m => m.classList.remove('visible'));
-    // Show only the requested menu
     if (!isVisible) {
         menu.classList.add('visible');
     }
 }
 
-/**
- * Calculates and sets the position of the floating toolbar 10px above the active sticky note.
- */
 function updateNoteToolbarPosition(note) {
     if (!note.parentNode || !noteFloatingToolbar) return;
 
-    // Get note's current absolute position and dimensions
     const noteX = parseInt(note.style.left) || 0;
     const noteY = parseInt(note.style.top) || 0;
     const noteWidth = note.offsetWidth;
-    // We need getBoundingClientRect here to get the toolbar's dimensions
-    const toolbarRect = noteFloatingToolbar.getBoundingClientRect(); 
+    const toolbarRect = noteFloatingToolbar.getBoundingClientRect();
 
-    // The toolbar is also absolutely positioned within the corkboard.
-    
-    // Target position (TOP): 10px above the note (NoteY - toolbarHeight - margin)
     let top = noteY - toolbarRect.height - 10;
-    // Target position (LEFT): centered horizontally above the note
     let left = noteX + (noteWidth / 2) - (toolbarRect.width / 2);
 
-    // Clamp the top position to prevent it from going above the corkboard's top edge (0px)
     top = Math.max(0, top);
-
-    // Keep left position reasonable
     const corkboardWidth = corkboard.scrollWidth;
     left = Math.max(10, left);
     left = Math.min(left, corkboardWidth - toolbarRect.width - 10);
-    
+
     noteFloatingToolbar.style.top = top + 'px';
     noteFloatingToolbar.style.left = left + 'px';
 }
 
-// --- Sticky Wall Drawing Logic (On Note) ---
+// --- Note drawing functions ---
 function setNoteDrawMode(enable) {
     isDrawingOnNote = enable;
-    if(corkboard) corkboard.setAttribute('data-tool', enable ? 'note-draw' : 'select');
-    
+    if (corkboard) corkboard.setAttribute('data-tool', enable ? 'note-draw' : 'select');
+
     if (activeNote) {
         activeNote.setAttribute('data-drawing', enable);
         activeNote.style.cursor = enable ? 'crosshair' : 'grab';
         const contentEl = activeNote.querySelector('.sticky-note-content');
-        if(contentEl) contentEl.contentEditable = !enable;
-        
+        if (contentEl) contentEl.contentEditable = !enable;
+
         if (enable) {
             const noteCanvas = activeNote.querySelector('.note-canvas');
-            if(noteCanvas) currentNoteCtx = noteCanvas.getContext('2d');
+            if (noteCanvas) currentNoteCtx = noteCanvas.getContext('2d');
         } else {
             currentNoteCtx = null;
-            
-            // Save the drawing to the note data as base64
             const noteCanvas = activeNote.querySelector('.note-canvas');
-            const noteId = parseInt(activeNote.getAttribute('data-note-id')); 
-            const note = stickyNotes.find(n => n.id === noteId); 
+            const noteId = parseInt(activeNote.getAttribute('data-note-id'));
+            const note = stickyNotes.find(n => n.id === noteId);
             if (note && noteCanvas) {
                 note.noteCanvasData = noteCanvas.toDataURL();
-                saveStickyNote(note); 
+                saveStickyNote(note);
             }
         }
     }
@@ -650,31 +578,28 @@ function startNoteDraw(e) {
     if (!isDrawingOnNote || !currentNoteCtx) return;
     noteDrawing = true;
     currentNoteCtx.beginPath();
-    currentNoteCtx.moveTo(e.offsetX, e.offsetY); 
+    currentNoteCtx.moveTo(e.offsetX, e.offsetY);
     e.stopPropagation();
 }
 
 function drawOnNote(e) {
     if (!noteDrawing || !currentNoteCtx) return;
-    
-    // --- FIX: Use main toolbar settings for drawing on note ---
+
     currentNoteCtx.strokeStyle = currentStrokeColor;
-    currentNoteCtx.lineWidth = currentStrokeWidth * 0.5; // Make note drawing a bit finer
+    currentNoteCtx.lineWidth = currentStrokeWidth * 0.5;
     currentNoteCtx.lineCap = 'round';
-    
-    // --- FIX: Apply tool logic ---
-    if(currentTool === 'eraser') {
+
+    if (currentTool === 'eraser') {
         currentNoteCtx.globalCompositeOperation = 'destination-out';
         currentNoteCtx.globalAlpha = 1.0;
     } else if (currentTool === 'highlight') {
         currentNoteCtx.globalCompositeOperation = 'multiply';
         currentNoteCtx.globalAlpha = currentOpacity;
-    } else { // marker
+    } else {
         currentNoteCtx.globalCompositeOperation = 'source-over';
         currentNoteCtx.globalAlpha = currentOpacity;
     }
-    // --- END FIX ---
-    
+
     currentNoteCtx.lineTo(e.offsetX, e.offsetY);
     currentNoteCtx.stroke();
     e.stopPropagation();
@@ -684,7 +609,6 @@ function endNoteDraw() {
     if (noteDrawing) {
         noteDrawing = false;
         currentNoteCtx.closePath();
-        // --- FIX: Reset composite operation after drawing ---
         currentNoteCtx.globalCompositeOperation = 'source-over';
     }
 }
@@ -695,54 +619,47 @@ let activeHandle = null;
 let initialNoteWidth, initialNoteHeight, initialMouseX, initialMouseY, initialNoteX, initialNoteY;
 
 function startDragOrResize(e) {
-    if (e.button !== 0 || !corkboard) return; 
-    
-    // Handle dismissal of dropdowns if clicking outside
+    if (e.button !== 0 || !corkboard) return;
+
     if (!e.target.closest('#note-floating-toolbar')) {
         document.querySelectorAll('.note-dropdown-menu').forEach(m => m.classList.remove('visible'));
     }
-    
+
     const clickedNote = e.target.closest('.sticky-note');
-    
-    // 1. Resizing check
+
+    // Resizing check
     if (e.target.classList.contains('resize-handle')) {
         isResizing = true;
         activeHandle = e.target;
         activeNote = clickedNote;
-        
+
         initialNoteWidth = activeNote.offsetWidth;
         initialNoteHeight = activeNote.offsetHeight;
         initialNoteX = parseInt(activeNote.style.left) || 0;
         initialNoteY = parseInt(activeNote.style.top) || 0;
         initialMouseX = e.clientX;
         initialMouseY = e.clientY;
-        
+
         document.querySelectorAll('.sticky-note').forEach(n => n.style.zIndex = '50');
         activeNote.style.zIndex = '100';
-        noteFloatingToolbar?.classList.add('hidden'); // Hide toolbar when resizing starts
-        
+        noteFloatingToolbar?.classList.add('hidden');
+
         e.preventDefault();
         return;
     }
-    
-    // 2. Note Drawing start check
+
+    // Note Drawing start check
     if (isDrawingOnNote && clickedNote === activeNote && e.target.classList.contains('note-canvas')) {
         startNoteDraw(e);
         return;
     }
-    
-    // 3. Dragging check (on the note or its content/handles if not drawing)
+
+    // Dragging check
     if (clickedNote && currentTool === 'select' && !isDrawingOnNote) {
-        
         const contentArea = clickedNote.querySelector('.sticky-note-content');
         if (contentArea.contains(e.target)) {
-            // If the click is on the text content, don't drag, allow text selection
-            // But if it's already focused, a drag *outside* the text selection should drag the note
             if (document.activeElement === contentArea) {
-                 // This logic is tricky. For now, if content is the target, we allow text interaction.
-                 // A drag handle (like a header) is a better UX pattern.
-                 // Let's assume for now that if the target is content, we don't drag.
-                 return;
+                return;
             }
         }
 
@@ -750,89 +667,80 @@ function startDragOrResize(e) {
         isMoving = true;
         lastX = e.clientX;
         lastY = e.clientY;
-        
-        // Set active note state
+
         document.querySelectorAll('.sticky-note').forEach(n => n.classList.remove('active-note'));
         activeDraggable.classList.add('active-note');
-        activeDraggable.classList.add('is-moving'); 
+        activeDraggable.classList.add('is-moving');
         activeNote = activeDraggable;
-        
-        // Show floating toolbar
+
         updateNoteToolbarState();
         updateNoteToolbarPosition(activeNote);
         noteFloatingToolbar?.classList.remove('hidden');
 
-        // Bring to front
         document.querySelectorAll('.sticky-note').forEach(n => n.style.zIndex = '50');
         activeNote.style.zIndex = '100';
 
         e.preventDefault();
         return;
     }
-    
-    // 4. Main Canvas Drawing (Marker/Highlighter/Eraser/Washi-Tape)
-    if ((currentTool !== 'select' && currentTool !== 'washi-tape') && !isDrawingOnNote && e.target === canvas) {  // Exclude washi-tape from freehand
+
+    // Main Canvas Drawing: special-case for Washi Tape (straight line)
+    if (currentTool === 'washi-tape' && !isDrawingOnNote && e.target === canvas) {
+        isWashiDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        washiStartX = e.clientX - rect.left;
+        washiStartY = e.clientY - rect.top;
+        e.preventDefault();
+        return;
+    }
+
+    // Main Canvas Drawing: other continuous tools (marker/highlighter/eraser)
+    if (currentTool !== 'select' && currentTool !== 'washi-tape' && !isDrawingOnNote && e.target === canvas) {
         drawing = true;
         const newStroke = {
             tool: currentTool,
             color: currentStrokeColor,
             width: currentStrokeWidth,
-            opacity: currentTool === 'highlight' ? 0.3 : currentOpacity, // Special opacity for highlighter
+            opacity: currentTool === 'highlight' ? 0.3 : currentOpacity,
             points: [{ x: e.offsetX, y: e.offsetY }]
         };
         strokes.push(newStroke);
-        
-        // --- FIX: Apply correct context settings on start ---
+
         ctx.strokeStyle = newStroke.color;
         ctx.lineWidth = newStroke.width;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        
+
         if (currentTool === 'highlight') {
             ctx.globalCompositeOperation = 'multiply';
             ctx.globalAlpha = newStroke.opacity;
         } else if (currentTool === 'eraser') {
             ctx.globalCompositeOperation = 'destination-out';
             ctx.globalAlpha = 1.0;
-        } else { // marker
+        } else {
             ctx.globalCompositeOperation = 'source-over';
             ctx.globalAlpha = newStroke.opacity;
         }
-        
+
         ctx.beginPath();
         ctx.moveTo(e.offsetX, e.offsetY);
-        // --- END FIX ---
-        
-        e.preventDefault();
-        return;
-    } else if (currentTool === 'washi-tape' && !isDrawingOnNote && e.target === canvas) {  // Special handling for straight-line washi-tape
-        drawing = true;
-        const newStroke = {
-            tool: 'washi-tape',
-            color: currentStrokeColor,
-            width: currentStrokeWidth,
-            opacity: currentOpacity,
-            points: [{ x: e.offsetX, y: e.offsetY }]  // Start point only initially
-        };
-        strokes.push(newStroke);
         e.preventDefault();
         return;
     }
 
-
-    // 5. Clicked outside any active element - deselect
+    // Clicked outside
     if (activeNote && !e.target.closest('.sticky-note') && !e.target.closest('#note-floating-toolbar')) {
         activeNote.classList.remove('active-note');
         noteFloatingToolbar?.classList.add('hidden');
         activeNote = null;
-        setNoteDrawMode(false); // Disable note drawing mode
+        setNoteDrawMode(false);
     }
 }
 
 function dragOrResize(e) {
     if (!corkboard) return;
-    
-    // 1. Resizing Logic
+
+    // Resizing Logic
     if (isResizing && activeNote) {
         e.preventDefault();
         const dx = e.clientX - initialMouseX;
@@ -842,37 +750,31 @@ function dragOrResize(e) {
         let newLeft = initialNoteX;
         let newTop = initialNoteY;
 
-        const minSize = 150; 
+        const minSize = 150;
 
         if (activeHandle.classList.contains('handle-br')) {
             newWidth = Math.max(minSize, initialNoteWidth + dx);
             newHeight = Math.max(minSize, initialNoteHeight + dy);
-        }
-        else if (activeHandle.classList.contains('handle-tl')) {
+        } else if (activeHandle.classList.contains('handle-tl')) {
             newWidth = Math.max(minSize, initialNoteWidth - dx);
             newLeft = initialNoteX + (initialNoteWidth - newWidth);
             newHeight = Math.max(minSize, initialNoteHeight - dy);
             newTop = initialNoteY + (initialNoteHeight - newHeight);
-        }
-        else if (activeHandle.classList.contains('handle-tr')) {
+        } else if (activeHandle.classList.contains('handle-tr')) {
             newWidth = Math.max(minSize, initialNoteWidth + dx);
             newHeight = Math.max(minSize, initialNoteHeight - dy);
             newTop = initialNoteY + (initialNoteHeight - newHeight);
-        }
-        else if (activeHandle.classList.contains('handle-bl')) {
+        } else if (activeHandle.classList.contains('handle-bl')) {
             newWidth = Math.max(minSize, initialNoteWidth - dx);
             newLeft = initialNoteX + (initialNoteWidth - newWidth);
             newHeight = Math.max(minSize, initialNoteHeight + dy);
         }
 
-        // Apply new styles
         activeNote.style.width = newWidth + 'px';
         activeNote.style.height = newHeight + 'px';
         activeNote.style.left = newLeft + 'px';
         activeNote.style.top = newTop + 'px';
 
-
-        // Resize internal canvas (critical to avoid distortion on subsequent drawing)
         const noteCanvas = activeNote.querySelector('.note-canvas');
         if (noteCanvas) {
             const tempCanvas = document.createElement('canvas');
@@ -880,88 +782,73 @@ function dragOrResize(e) {
             tempCanvas.width = noteCanvas.width;
             tempCanvas.height = noteCanvas.height;
             tempCtx.drawImage(noteCanvas, 0, 0);
-            
+
             noteCanvas.width = newWidth;
             noteCanvas.height = newHeight;
             noteCanvas.getContext('2d').drawImage(tempCanvas, 0, 0, newWidth, newHeight);
         }
-        
+
         return;
     }
 
-    // 2. Dragging Logic
+    // Dragging Logic
     if (isMoving && activeDraggable) {
         e.preventDefault();
         const dx = e.clientX - lastX;
         const dy = e.clientY - lastY;
-        
+
         let newLeft = activeDraggable.offsetLeft + dx;
         let newTop = activeDraggable.offsetTop + dy;
-        
-        // Keep the draggable within the corkboard bounds
+
         newLeft = Math.max(0, newLeft);
         newTop = Math.max(0, newTop);
         newLeft = Math.min(newLeft, corkboard.scrollWidth - activeDraggable.offsetWidth);
         newTop = Math.min(newTop, corkboard.scrollHeight - activeDraggable.offsetHeight);
-        
+
         activeDraggable.style.left = newLeft + 'px';
         activeDraggable.style.top = newTop + 'px';
-        
+
         lastX = e.clientX;
         lastY = e.clientY;
-        
+
         updateNoteToolbarPosition(activeDraggable);
         return;
     }
-    
-        // 3. Main Canvas Drawing Logic (THE FIX) - Updated for washi-tape
+
+    // Main Canvas Drawing Logic (continuous)
     if (drawing && e.target === canvas) {
         e.preventDefault();
         const currentStroke = strokes[strokes.length - 1];
-        
-        if (currentStroke.tool === 'washi-tape') {
-            // For washi-tape, update the end point and redraw the straight line
-            currentStroke.points = [currentStroke.points[0], { x: e.offsetX, y: e.offsetY }];
-            redrawAllStrokes();  // Redraw to show the updated straight line
+
+        ctx.strokeStyle = currentStroke.color;
+        ctx.lineWidth = currentStroke.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (currentStroke.tool === 'highlight') {
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.globalAlpha = currentStroke.opacity;
+        } else if (currentStroke.tool === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.globalAlpha = 1.0;
         } else {
-            // Original freehand logic for other tools
-            // --- FIX: Apply context settings on every draw event ---
-            // This ensures the settings are correct even if sliders change mid-draw
-            ctx.strokeStyle = currentStroke.color;
-            ctx.lineWidth = currentStroke.width;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            
-            if (currentStroke.tool === 'highlight') {
-                ctx.globalCompositeOperation = 'multiply';
-                ctx.globalAlpha = currentStroke.opacity;
-            } else if (currentStroke.tool === 'eraser') {
-                ctx.globalCompositeOperation = 'destination-out';
-                ctx.globalAlpha = 1.0;
-            } else { // marker
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.globalAlpha = currentStroke.opacity;
-            }
-            // --- END FIX ---
-            
-            // Draw segment
-            ctx.lineTo(e.offsetX, e.offsetY);
-            ctx.stroke();
-            
-            // Add point to stroke
-            const newPoint = { x: e.offsetX, y: e.offsetY };
-            currentStroke.points.push(newPoint);
-            
-            // Begin a new path segment for the next mouse move
-            ctx.beginPath();
-            ctx.moveTo(e.offsetX, e.offsetY);
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = currentStroke.opacity;
         }
-        
+
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+
+        const newPoint = { x: e.offsetX, y: e.offsetY };
+        currentStroke.points.push(newPoint);
+
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+
         return;
     }
 
-    
-    // 4. Note Drawing Logic
+    // Note Drawing Logic
     if (noteDrawing && activeNote) {
         e.preventDefault();
         drawOnNote(e);
@@ -970,14 +857,14 @@ function dragOrResize(e) {
 
 function endDragOrResize(e) {
     if (!corkboard) return;
-    
-    // 1. Resizing End
+
+    // Resizing End
     if (isResizing && activeNote) {
         isResizing = false;
         activeHandle = null;
-        updateNoteToolbarPosition(activeNote); 
-        noteFloatingToolbar?.classList.remove('hidden'); 
-        
+        updateNoteToolbarPosition(activeNote);
+        noteFloatingToolbar?.classList.remove('hidden');
+
         const noteId = parseInt(activeNote.getAttribute('data-note-id'));
         const note = stickyNotes.find(n => n.id === noteId);
         if (note) {
@@ -985,19 +872,19 @@ function endDragOrResize(e) {
             note.canvasY = parseInt(activeNote.style.top) || 0;
             note.noteWidth = activeNote.offsetWidth;
             note.noteHeight = activeNote.offsetHeight;
-            
+
             const noteCanvas = activeNote.querySelector('.note-canvas');
-            if(noteCanvas) note.noteCanvasData = noteCanvas.toDataURL();
-            
-            saveStickyNote(note); 
+            if (noteCanvas) note.noteCanvasData = noteCanvas.toDataURL();
+
+            saveStickyNote(note);
         }
     }
-    
-    // 2. Dragging End
+
+    // Dragging End
     if (isMoving && activeDraggable) {
         isMoving = false;
-        activeDraggable.classList.remove('is-moving'); 
-        
+        activeDraggable.classList.remove('is-moving');
+
         const noteId = parseInt(activeDraggable.getAttribute('data-note-id'));
         const note = stickyNotes.find(n => n.id === noteId);
         if (note) {
@@ -1006,95 +893,99 @@ function endDragOrResize(e) {
             saveStickyNote(note);
         }
         activeDraggable = null;
-        
-        // Ensure toolbar remains open and updated after drag
+
         if (activeNote) {
             updateNoteToolbarState();
             noteFloatingToolbar?.classList.remove('hidden');
         }
     }
-    
-        // 3. Main Canvas Drawing End (THE FIX) - Updated for washi-tape
+
+    // Main Canvas Drawing End (continuous tools)
     if (drawing) {
         drawing = false;
-        const currentStroke = strokes[strokes.length - 1];
-        
-        if (currentStroke.tool === 'washi-tape') {
-            // Ensure washi-tape has exactly two points (start and end)
-            if (currentStroke.points.length < 2) {
-                strokes.pop();  // Remove invalid stroke if no drag occurred
-            }
-        }
-        
-        // Reset context
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1;
-        // Redraw all strokes cleanly to fix any overlap issues
         redrawAllStrokes();
-        // Save strokes to localStorage logic would go here
     }
 
-    
-    // 4. Note Drawing End
+    // Washi Tape end (straight-line)
+    if (isWashiDrawing && e.target === canvas) {
+        isWashiDrawing = false;
+        const rect = canvas.getBoundingClientRect();
+        const endX = e.clientX - rect.left;
+        const endY = e.clientY - rect.top;
+
+        // Create washi stroke object
+        const washiStroke = {
+            tool: 'washi-tape',
+            color: currentStrokeColor,
+            width: currentStrokeWidth,
+            opacity: currentOpacity,
+            pattern: currentWashiPattern,
+            start: { x: washiStartX, y: washiStartY },
+            end: { x: endX, y: endY }
+        };
+
+        strokes.push(washiStroke);
+        redrawAllStrokes();
+    }
+
+    // Note Drawing End
     if (noteDrawing) {
         endNoteDraw();
     }
 }
 
-// --- Sticky Wall Toolbar Event Handlers ---
-
-/** Handles clicks on the main corkboard toolbar */
+// --- Toolbar Handlers ---
 function handleToolClick(e) {
     const btn = e.target.closest('.tool-btn');
     if (!btn) return;
 
     const tool = btn.getAttribute('data-tool');
     if (!tool) return;
-    
-    // Deselect all tools
+
     document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
-    
-    // Activate the clicked tool
-    if (tool !== 'add-note') { // 'add-note' is a one-time action, not a mode
+
+    if (tool !== 'add-note') {
         btn.classList.add('active');
         currentTool = tool;
-        if(corkboard) corkboard.setAttribute('data-tool', tool); // FIX: Set data-tool on corkboard
+        if (corkboard) corkboard.setAttribute('data-tool', tool);
     } else {
-        // If 'add-note' is clicked, reset tool to 'select'
         document.querySelector('.tool-btn[data-tool="select"]')?.classList.add('active');
         currentTool = 'select';
-        if(corkboard) corkboard.setAttribute('data-tool', 'select'); // FIX: Set data-tool on corkboard
+        if (corkboard) corkboard.setAttribute('data-tool', 'select');
     }
-    
-    // --- FIX: Apply correct settings when a tool is selected ---
-    if (tool === 'marker' || tool === 'washi-tape') {  // Treat washi-tape like marker
-        currentStrokeColor = document.getElementById('stroke-color-input').value;
-        currentOpacity = parseFloat(document.getElementById('opacity-slider').value);
+
+    if (tool === 'marker') {
+        currentStrokeColor = document.getElementById('stroke-color-input')?.value || currentStrokeColor;
+        currentOpacity = parseFloat(document.getElementById('opacity-slider')?.value || currentOpacity);
     } else if (tool === 'highlight') {
-        currentOpacity = 0.3; // Force highlighter opacity
+        currentOpacity = 0.3;
     } else if (tool === 'eraser') {
         currentOpacity = 1.0;
     }
-    // --- END FIX ---
-    
-    
-    // Remove selection and hide toolbar if switching tools
+
+    // Show/hide washi toolbar
+    if (tool === 'washi-tape' && washiToolbar) {
+        washiToolbar.classList.remove('hidden');
+    } else if (washiToolbar) {
+        washiToolbar.classList.add('hidden');
+    }
+
     if (tool !== 'select' && activeNote) {
         activeNote.classList.remove('active-note');
         noteFloatingToolbar?.classList.add('hidden');
         activeNote = null;
-        setNoteDrawMode(false); // Disable note drawing mode
+        setNoteDrawMode(false);
     }
-    
-    // Add new sticky note
+
     if (tool === 'add-note') {
-        // Calculate center of current scroll view
         const centerX = corkboard.scrollLeft + (corkboard.clientWidth / 2);
         const centerY = corkboard.scrollTop + (corkboard.clientHeight / 2);
-        
-        const newNoteX = centerX - 125; // 125px is half of 250px note width
-        const newNoteY = centerY - 125; // 125px is half of 250px note height
-        
+
+        const newNoteX = centerX - 125;
+        const newNoteY = centerY - 125;
+
         const newNoteData = {
             title: 'New Sticky Note',
             noteColor: currentStickyNoteColor,
@@ -1105,86 +996,63 @@ function handleToolClick(e) {
             canvasY: newNoteY,
             noteWidth: 250,
             noteHeight: 250,
-            noteCanvasData: null // Ensure new notes start with no drawing
+            noteCanvasData: null
         };
-        
-        saveStickyNote(newNoteData); 
+
+        saveStickyNote(newNoteData);
     }
 }
 
-
-
-/** Handles clicks on the floating sticky note toolbar */
 function handleToolbarClicks(e) {
     const target = e.target.closest('.note-tool-btn, .note-color-option, .note-font-option, .note-size-option');
     if (!target || !activeNote) return;
-    
-    // Prevent note drawing logic from interrupting toolbar interaction
+
     e.stopPropagation();
-    e.preventDefault(); 
-    
-    // Find the note data in the state
+    e.preventDefault();
+
     const noteId = parseInt(activeNote.getAttribute('data-note-id'));
     const note = stickyNotes.find(n => n.id === noteId);
     const contentEl = activeNote.querySelector('.sticky-note-content');
 
     if (!note || !contentEl) return;
-    
-    // 1. Delete Button
+
     if (target.classList.contains('note-delete-btn')) {
         window.showConfirm("Are you sure you want to delete this sticky note?", (result) => {
             if (result) {
-                deleteStickyNote(noteId); 
+                deleteStickyNote(noteId);
             }
         });
-    } 
-    
-    // 2. Drawing Toggle (Draw/Hide User)
-    else if (target.classList.contains('note-draw-toggle')) {
+    } else if (target.classList.contains('note-draw-toggle')) {
         setNoteDrawMode(!isDrawingOnNote);
-    }
-    
-    // 3. Text Formatting (Bold, Strike, List)
-    else if (target.dataset.textStyle) {
-        // *** CRITICAL FIX: Must focus the contenteditable area before calling execCommand ***
-        contentEl.focus(); 
-        
+    } else if (target.dataset.textStyle) {
+        contentEl.focus();
+
         let command = target.dataset.textStyle;
         if (command === 'strike') command = 'strikeThrough';
-        
+
         if (command === 'unordered-list' || command === 'ordered-list') {
-            // Check if any list is active, if so, outdent/remove list first
             if (document.queryCommandState('insertUnorderedList') || document.queryCommandState('insertOrderedList')) {
-                 document.execCommand('outdent', false, null);
+                document.execCommand('outdent', false, null);
             } else {
-                 document.execCommand(command === 'unordered-list' ? 'insertUnorderedList' : 'insertOrderedList', false, null);
+                document.execCommand(command === 'unordered-list' ? 'insertUnorderedList' : 'insertOrderedList', false, null);
             }
         } else {
             document.execCommand(command, false, null);
         }
 
-        // Update button states and save the new HTML content
         updateTextStyleButtonStates();
         note.noteContent = contentEl.innerHTML;
         saveStickyNote(note);
 
-    } 
-    
-    // 4. Author Stamp (Show/Hide User)
-    else if (target.id === 'note-author-btn') {
-        // *** CRITICAL FIX: Must focus the contenteditable area before calling execCommand ***
+    } else if (target.id === 'note-author-btn') {
         contentEl.focus();
-        
         document.execCommand('insertText', false, USERNAME + ' ');
         note.noteContent = contentEl.innerHTML;
         saveStickyNote(note);
-    }
-    
-    // 5. Color/Font/Size Selection Logic
-    else {
+    } else {
         let noteUpdate = {};
         let needsUpdate = false;
-        
+
         if (target.classList.contains('note-color-option')) {
             const colorName = target.getAttribute('data-color');
             activeNote.style.backgroundColor = STICKY_NOTE_BG_COLORS[colorName];
@@ -1193,131 +1061,180 @@ function handleToolbarClicks(e) {
             toggleDropdown(noteColorMenu);
         } else if (target.classList.contains('note-font-option')) {
             const fontName = target.getAttribute('data-font');
-            activeNote.setAttribute('data-font', fontName); // Update DOM attribute
+            activeNote.setAttribute('data-font', fontName);
             noteUpdate.noteFont = fontName;
             needsUpdate = true;
             toggleDropdown(noteFontMenu);
         } else if (target.classList.contains('note-size-option')) {
             const sizeName = target.getAttribute('data-size');
-            activeNote.setAttribute('data-size', sizeName); // Update DOM attribute
+            activeNote.setAttribute('data-size', sizeName);
             noteUpdate.noteSize = sizeName;
             needsUpdate = true;
             toggleDropdown(noteSizeMenu);
         }
-        
+
         if (needsUpdate) {
-            // Save the data and trigger render update (which mainly updates non-active notes)
             Object.assign(note, noteUpdate);
-            saveStickyNote(note); 
-            // Update the toolbar display for the active note
+            saveStickyNote(note);
             updateNoteToolbarState();
             updateNoteToolbarPosition(activeNote);
         }
     }
 }
 
-// --- FIX: Main Canvas Drawing Engine ---
-/**
- * Clears the main canvas and redraws all strokes from the 'strokes' array.
- */
+// --- Canvas utilities (including washi pattern and torn edge) ---
+function makePatternForWashi(patternName) {
+    const patternCanvas = document.createElement('canvas');
+    patternCanvas.width = 20;
+    patternCanvas.height = 20;
+    const pctx = patternCanvas.getContext('2d');
+
+    if (patternName === 'diagonal') {
+        pctx.strokeStyle = '#9b8f8f';
+        pctx.lineWidth = 2;
+        pctx.beginPath();
+        pctx.moveTo(0, 20);
+        pctx.lineTo(20, 0);
+        pctx.stroke();
+    } else if (patternName === 'dots') {
+        pctx.fillStyle = '#9b8f8f';
+        for (let y = 5; y < 20; y += 10) {
+            for (let x = 5; x < 20; x += 10) {
+                pctx.beginPath();
+                pctx.arc(x, y, 1.5, 0, Math.PI * 2);
+                pctx.fill();
+            }
+        }
+    } else if (patternName === 'grid') {
+        pctx.strokeStyle = '#cfcfcf';
+        pctx.lineWidth = 1;
+        for (let i = 0; i < 20; i += 5) {
+            pctx.beginPath();
+            pctx.moveTo(i, 0);
+            pctx.lineTo(i, 20);
+            pctx.moveTo(0, i);
+            pctx.lineTo(20, i);
+            pctx.stroke();
+        }
+    } else {
+        pctx.fillStyle = '#fdfdfd';
+        pctx.fillRect(0, 0, 20, 20);
+    }
+
+    return ctx.createPattern(patternCanvas, 'repeat');
+}
+
+function drawTornEdge(cx, cy, length, angle) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    // jagged line along x axis
+    const step = Math.max(2, Math.floor(length / 6));
+    for (let i = 0; i <= length; i += step) {
+        const rand = (Math.random() - 0.5) * (step * 0.6);
+        ctx.lineTo(i, rand);
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+}
+
+// --- Main canvas redraw (handles washi strokes too) ---
 function redrawAllStrokes() {
     if (!ctx || !canvas) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
-    
-    strokes.forEach(stroke => {
-        ctx.beginPath();
-        ctx.strokeStyle = stroke.color;
-        ctx.lineWidth = stroke.width;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // --- FIX: Set opacity/composite op based on the *saved tool* ---
-        if (stroke.tool === 'highlight') {
-            ctx.globalCompositeOperation = 'multiply'; // Good for highlighting
-            ctx.globalAlpha = stroke.opacity;
-        } else if (stroke.tool === 'eraser') {
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.globalAlpha = 1.0;
-        } else { // 'marker' or 'washi-tape'
+    strokes.forEach(stroke => {
+        if (stroke.tool === 'washi-tape') {
+            // draw straight tape between start and end
+            ctx.save();
+            // Create pattern
+            const pattern = makePatternForWashi(stroke.pattern || 'diagonal');
+            ctx.strokeStyle = pattern;
+            ctx.lineWidth = stroke.width;
+            ctx.lineCap = 'butt';
+            ctx.lineJoin = 'miter';
+            ctx.globalAlpha = stroke.opacity !== undefined ? stroke.opacity : 1.0;
             ctx.globalCompositeOperation = 'source-over';
-            ctx.globalAlpha = stroke.opacity;
-        }
-        // --- END FIX ---
-        
-        if (stroke.tool === 'washi-tape' && stroke.points.length >= 2) {
-            // Draw straight line for washi-tape
-            const start = stroke.points[0];
-            const end = stroke.points[1];
-            ctx.moveTo(start.x, start.y);
-            ctx.lineTo(end.x, end.y);
+
+            ctx.beginPath();
+            ctx.moveTo(stroke.start.x, stroke.start.y);
+            ctx.lineTo(stroke.end.x, stroke.end.y);
             ctx.stroke();
-            
-            // Add torn effect at start and end
-            drawTornEffect(ctx, start.x, start.y, end.x, end.y, stroke.width);
-        } else if (stroke.points.length >= 2) {
-            // Original logic for other tools
-            ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-            for (let i = 1; i < stroke.points.length; i++) {
-                ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+
+            // Draw subtle base color overlay to simulate tape
+            ctx.globalAlpha = 0.12;
+            ctx.strokeStyle = stroke.color || '#000';
+            ctx.lineWidth = stroke.width;
+            ctx.beginPath();
+            ctx.moveTo(stroke.start.x, stroke.start.y);
+            ctx.lineTo(stroke.end.x, stroke.end.y);
+            ctx.stroke();
+
+            // Torn edges
+            const dx = stroke.end.x - stroke.start.x;
+            const dy = stroke.end.y - stroke.start.y;
+            const angle = Math.atan2(dy, dx);
+
+            // small offset so the torn edge sits at the tape end
+            drawTornEdge(stroke.start.x, stroke.start.y, Math.min(28, stroke.width * 1.5), angle - Math.PI);
+            drawTornEdge(stroke.end.x - Math.cos(angle) * 2, stroke.end.y - Math.sin(angle) * 2, Math.min(28, stroke.width * 1.5), angle);
+
+            ctx.restore();
+        } else {
+            ctx.beginPath();
+            ctx.strokeStyle = stroke.color;
+            ctx.lineWidth = stroke.width;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if (stroke.tool === 'highlight') {
+                ctx.globalCompositeOperation = 'multiply';
+                ctx.globalAlpha = stroke.opacity;
+            } else if (stroke.tool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.globalAlpha = 1.0;
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = stroke.opacity;
+            }
+
+            if (!stroke.points || stroke.points.length < 2) {
+                // single point
+                if (stroke.points && stroke.points.length === 1) {
+                    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                    ctx.lineTo(stroke.points[0].x + 0.1, stroke.points[0].y + 0.1);
+                }
+            } else {
+                ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                for (let i = 1; i < stroke.points.length; i++) {
+                    ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
             }
             ctx.stroke();
         }
     });
-    
-    // Reset composite operation and alpha for future operations
+
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
-}
-
-/**
- * Draws a torn effect at the ends of a washi-tape line.
- * @param {CanvasRenderingContext2D} ctx - The canvas context.
- * @param {number} startX - Start X of the line.
- * @param {number} startY - Start Y of the line.
- * @param {number} endX - End X of the line.
- * @param {number} endY - End Y of the line.
- * @param {number} width - Stroke width for scaling the tears.
- */
-function drawTornEffect(ctx, startX, startY, endX, endY, width) {
-    const tearSize = Math.max(width / 2, 5);  // Scale tear size based on stroke width
-    const angle = Math.atan2(endY - startY, endX - startX);  // Line direction
-    
-    // Helper to draw a zigzag tear at a point
-    const drawTear = (x, y, direction) => {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle + direction * Math.PI / 2);  // Perpendicular to line
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(tearSize * 0.5, tearSize * 0.3);
-        ctx.lineTo(tearSize, 0);
-        ctx.lineTo(tearSize * 0.5, -tearSize * 0.3);
-        ctx.closePath();
-        ctx.fillStyle = ctx.strokeStyle;  // Match line color
-        ctx.fill();
-        ctx.restore();
-    };
-    
-    // Draw tears at start and end
-    drawTear(startX, startY, 1);  // One side at start
-    drawTear(startX, startY, -1); // Other side at start
-    drawTear(endX, endY, 1);     // One side at end
-    drawTear(endX, endY, -1);    // Other side at end
 }
 
 // --- Sticky Wall Initialization ---
 function initializeStickyWall() {
     if (!canvas || !corkboard) return;
-    
-    // Set up main canvas context and dimensions
-    // Ensure corkboard can be scrolled and canvas covers the scrollable area
-    canvas.width = corkboard.scrollWidth; 
-    canvas.height = corkboard.scrollHeight;
+
+    function fitCanvasToBoard() {
+        canvas.width = corkboard.scrollWidth;
+        canvas.height = corkboard.scrollHeight;
+        redrawAllStrokes();
+    }
+    fitCanvasToBoard();
+    window.addEventListener('resize', fitCanvasToBoard);
+
     ctx = canvas.getContext('2d');
-    
-    // FIX: Redraw any existing strokes (e.g., loaded from storage)
     redrawAllStrokes();
-    
     renderStickyWallNotes();
 }
 
@@ -1328,11 +1245,11 @@ let draggedElement = null;
 function handleDragStart(e) {
     draggedTaskId = e.target.getAttribute('data-task-id');
     e.dataTransfer.setData('text/plain', draggedTaskId);
-    e.target.classList.add('dragging'); 
+    e.target.classList.add('dragging');
 }
 
 function handleDragEnter(e) {
-    e.preventDefault(); 
+    e.preventDefault();
     e.currentTarget.classList.add('drag-over');
 }
 
@@ -1347,73 +1264,59 @@ function handleDrop(e) {
     const sourceTaskId = e.dataTransfer.getData('text/plain');
     const targetQuadrantEl = e.currentTarget;
     const newQuadrantId = targetQuadrantEl.getAttribute('data-quadrant');
-    
+
     document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-    
+
     if (sourceTaskId && newQuadrantId) {
         const taskId = parseInt(sourceTaskId);
         const task = tasks.find(t => t.id === taskId);
-        
+
         if (task && task.quadrant !== newQuadrantId) {
             task.quadrant = newQuadrantId;
             localStorage.setItem('tasks', JSON.stringify(tasks));
-            renderMatrixView(); 
+            renderMatrixView();
         }
     }
 }
 
 function setupMatrixDragAndDrop() {
     quadrants.forEach(quadrantEl => {
-        // Use a flag or check if the listener is already attached to prevent duplicates
-        // For simplicity and robustness, we re-apply all listeners here:
         quadrantEl.removeEventListener('dragover', (e) => e.preventDefault());
         quadrantEl.removeEventListener('dragenter', handleDragEnter);
         quadrantEl.removeEventListener('dragleave', handleDragLeave);
         quadrantEl.removeEventListener('drop', handleDrop);
-        
-        quadrantEl.addEventListener('dragover', (e) => e.preventDefault()); 
+
+        quadrantEl.addEventListener('dragover', (e) => e.preventDefault());
         quadrantEl.addEventListener('dragenter', handleDragEnter);
         quadrantEl.addEventListener('dragleave', handleDragLeave);
         quadrantEl.addEventListener('drop', handleDrop);
     });
 }
 
-// --- Main Event Listeners (Setup on DOMContentLoaded) ---
+// --- DOMContentLoaded: Wire up events and load state ---
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.quadrant-add-btn').forEach(button => {
-    button.addEventListener('click', () => {
-        // Get the quadrant ID from the button's data-quadrant attribute 
-        // (e.g., 'do', 'schedule', 'delegate', 'eliminate')
-        const quadrant = button.getAttribute('data-quadrant'); 
-        
-        // Open the modal for a new task.
-        // We pass 'null' for the taskId (indicating a new task) 
-        // and the correct 'quadrant' to pre-select the priority in the modal.
-        openModal(null, quadrant);
+        button.addEventListener('click', () => {
+            const quadrant = button.getAttribute('data-quadrant');
+            openModal(null, quadrant);
+        });
     });
-});
-    // Load initial data from localStorage
+
     const storedTasks = localStorage.getItem('tasks');
     if (storedTasks) {
         tasks = JSON.parse(storedTasks);
         taskIdCounter = parseInt(localStorage.getItem('taskIdCounter')) || (tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1);
     }
-    
-    // [DECOUPLED] Load sticky notes from localStorage
+
     const storedNotes = localStorage.getItem('stickyNotes');
     if (storedNotes) {
         stickyNotes = JSON.parse(storedNotes);
         stickyNoteIdCounter = parseInt(localStorage.getItem('stickyNoteIdCounter')) || (stickyNotes.length > 0 ? Math.max(...stickyNotes.map(n => n.id)) + 1 : 1);
     }
 
-    // Set up initial sticky wall context
-    if (canvas && corkboard) {
-        initializeStickyWall();
-    }
+    if (canvas && corkboard) initializeStickyWall();
 
-    // --- Matrix Core Event Listeners ---
-    // Quadrant Add Button Listener 
     quadrants.forEach(q => {
         q.querySelector('.quadrant-add-btn')?.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1422,20 +1325,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Modal Close Listeners
     closeButton?.addEventListener('click', closeModal);
     modal?.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeModal();
-        }
+        if (e.target === modal) closeModal();
     });
 
-    // New Task Button (All Tasks View)
-    newTaskButton?.addEventListener('click', () => {
-        openModal(null, 'do');
-    });
+    newTaskButton?.addEventListener('click', () => openModal(null, 'do'));
 
-    // Task Form Submission
     taskForm?.addEventListener('submit', (e) => {
         e.preventDefault();
 
@@ -1446,7 +1342,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const taskQuadrant = document.getElementById('task-priority').value;
 
         const existingTask = tasks.find(t => t.id === taskId);
-        
+
         const taskData = {
             id: taskId,
             title: taskTitle,
@@ -1461,7 +1357,6 @@ document.addEventListener('DOMContentLoaded', () => {
         closeModal();
     });
 
-    // Task Delete Button
     deleteTaskBtn?.addEventListener('click', () => {
         const taskId = parseInt(document.getElementById('current-task-id').value);
         window.showConfirm("Are you sure you want to delete this task? This action cannot be undone.", (result) => {
@@ -1472,82 +1367,71 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Menu Click Listeners
     document.querySelectorAll('.sidebar .task-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.getAttribute('data-view');
-            if (view) {
-                switchView(view);
-            }
+            if (view) switchView(view);
         });
     });
-    
-    // --- Sticky Wall Global Mouse Handlers ---
+
     document.addEventListener('mousedown', startDragOrResize);
     document.addEventListener('mousemove', dragOrResize);
     document.addEventListener('mouseup', endDragOrResize);
-    document.addEventListener('dragend', (e) => {
+    document.addEventListener('dragend', () => {
         document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
         document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
     });
-    
-    // Listen for selection changes to update B/I/U/L button states
+
     document.addEventListener('selectionchange', () => {
-        if (activeNote && !isDrawingOnNote) {
-            updateTextStyleButtonStates();
-        }
+        if (activeNote && !isDrawingOnNote) updateTextStyleButtonStates();
     });
 
-    // Main Tool Bar clicks
     toolbar?.addEventListener('click', handleToolClick);
-
-    // Sticky Note Floating Toolbar clicks (uses event delegation for menu options)
     noteFloatingToolbar?.addEventListener('click', handleToolbarClicks);
-    
-    // Dropdown button clicks (to toggle menus)
+
     noteColorBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(noteColorMenu); });
     noteFontBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(noteFontMenu); });
     noteSizeBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(noteSizeMenu); });
 
-    // --- FIX: Drawing options (for main toolbar) ---
     document.getElementById('stroke-width-slider')?.addEventListener('input', (e) => {
         currentStrokeWidth = parseFloat(e.target.value);
     });
     document.getElementById('opacity-slider')?.addEventListener('input', (e) => {
         currentOpacity = parseFloat(e.target.value);
-        // If user changes opacity, assume they want the marker tool
         if (currentTool !== 'marker') {
             handleToolClick({ target: document.querySelector('.tool-btn[data-tool="marker"]') });
         }
     });
-    
-    // --- FIX: Wire up color indicator and input ---
+
     document.getElementById('current-color-indicator')?.addEventListener('click', () => {
         document.getElementById('stroke-color-input')?.click();
     });
     document.getElementById('stroke-color-input')?.addEventListener('input', (e) => {
         currentStrokeColor = e.target.value;
-        // Update the indicator's background
         document.getElementById('current-color-indicator').style.backgroundColor = currentStrokeColor;
-        // If user changes color, switch to marker tool
         if (currentTool !== 'marker') {
-             handleToolClick({ target: document.querySelector('.tool-btn[data-tool="marker"]') });
+            handleToolClick({ target: document.querySelector('.tool-btn[data-tool="marker"]') });
         }
     });
-    
-    // --- FIX: Wire up Undo/Clear buttons ---
+
     document.getElementById('undo-btn')?.addEventListener('click', () => {
-        strokes.pop(); // Remove last stroke
-        redrawAllStrokes(); // Redraw
+        strokes.pop();
+        redrawAllStrokes();
     });
     document.getElementById('clear-all-btn')?.addEventListener('click', () => {
-        strokes = []; // Clear all strokes
-        redrawAllStrokes(); // Redraw (which will be empty)
+        strokes = [];
+        redrawAllStrokes();
     });
-    // --- END FIX ---
 
+    // Washi pattern controls (if present)
+    washiPatternButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            washiPatternButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentWashiPattern = btn.dataset.pattern;
+        });
+    });
 
-    // Initial render and view set
     renderAllViews();
     switchView('matrix');
 });
