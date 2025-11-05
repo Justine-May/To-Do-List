@@ -770,8 +770,8 @@ function startDragOrResize(e) {
         return;
     }
     
-    // 4. Main Canvas Drawing (Marker/Highlighter/Eraser)
-    if (currentTool !== 'select' && !isDrawingOnNote && e.target === canvas) {
+    // 4. Main Canvas Drawing (Marker/Highlighter/Eraser/Washi-Tape)
+    if ((currentTool !== 'select' && currentTool !== 'washi-tape') && !isDrawingOnNote && e.target === canvas) {  // Exclude washi-tape from freehand
         drawing = true;
         const newStroke = {
             tool: currentTool,
@@ -805,7 +805,20 @@ function startDragOrResize(e) {
         
         e.preventDefault();
         return;
+    } else if (currentTool === 'washi-tape' && !isDrawingOnNote && e.target === canvas) {  // Special handling for straight-line washi-tape
+        drawing = true;
+        const newStroke = {
+            tool: 'washi-tape',
+            color: currentStrokeColor,
+            width: currentStrokeWidth,
+            opacity: currentOpacity,
+            points: [{ x: e.offsetX, y: e.offsetY }]  // Start point only initially
+        };
+        strokes.push(newStroke);
+        e.preventDefault();
+        return;
     }
+
 
     // 5. Clicked outside any active element - deselect
     if (activeNote && !e.target.closest('.sticky-note') && !e.target.closest('#note-floating-toolbar')) {
@@ -901,44 +914,52 @@ function dragOrResize(e) {
         return;
     }
     
-    // 3. Main Canvas Drawing Logic (THE FIX)
+        // 3. Main Canvas Drawing Logic (THE FIX) - Updated for washi-tape
     if (drawing && e.target === canvas) {
         e.preventDefault();
         const currentStroke = strokes[strokes.length - 1];
         
-        // --- FIX: Apply context settings on every draw event ---
-        // This ensures the settings are correct even if sliders change mid-draw
-        ctx.strokeStyle = currentStroke.color;
-        ctx.lineWidth = currentStroke.width;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        
-        if (currentStroke.tool === 'highlight') {
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.globalAlpha = currentStroke.opacity;
-        } else if (currentStroke.tool === 'eraser') {
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.globalAlpha = 1.0;
-        } else { // marker
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.globalAlpha = currentStroke.opacity;
+        if (currentStroke.tool === 'washi-tape') {
+            // For washi-tape, update the end point and redraw the straight line
+            currentStroke.points = [currentStroke.points[0], { x: e.offsetX, y: e.offsetY }];
+            redrawAllStrokes();  // Redraw to show the updated straight line
+        } else {
+            // Original freehand logic for other tools
+            // --- FIX: Apply context settings on every draw event ---
+            // This ensures the settings are correct even if sliders change mid-draw
+            ctx.strokeStyle = currentStroke.color;
+            ctx.lineWidth = currentStroke.width;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            if (currentStroke.tool === 'highlight') {
+                ctx.globalCompositeOperation = 'multiply';
+                ctx.globalAlpha = currentStroke.opacity;
+            } else if (currentStroke.tool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.globalAlpha = 1.0;
+            } else { // marker
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = currentStroke.opacity;
+            }
+            // --- END FIX ---
+            
+            // Draw segment
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+            
+            // Add point to stroke
+            const newPoint = { x: e.offsetX, y: e.offsetY };
+            currentStroke.points.push(newPoint);
+            
+            // Begin a new path segment for the next mouse move
+            ctx.beginPath();
+            ctx.moveTo(e.offsetX, e.offsetY);
         }
-        // --- END FIX ---
-        
-        // Draw segment
-        ctx.lineTo(e.offsetX, e.offsetY);
-        ctx.stroke();
-        
-        // Add point to stroke
-        const newPoint = { x: e.offsetX, y: e.offsetY };
-        currentStroke.points.push(newPoint);
-        
-        // Begin a new path segment for the next mouse move
-        ctx.beginPath();
-        ctx.moveTo(e.offsetX, e.offsetY);
         
         return;
     }
+
     
     // 4. Note Drawing Logic
     if (noteDrawing && activeNote) {
@@ -993,9 +1014,18 @@ function endDragOrResize(e) {
         }
     }
     
-    // 3. Main Canvas Drawing End (THE FIX)
+        // 3. Main Canvas Drawing End (THE FIX) - Updated for washi-tape
     if (drawing) {
         drawing = false;
+        const currentStroke = strokes[strokes.length - 1];
+        
+        if (currentStroke.tool === 'washi-tape') {
+            // Ensure washi-tape has exactly two points (start and end)
+            if (currentStroke.points.length < 2) {
+                strokes.pop();  // Remove invalid stroke if no drag occurred
+            }
+        }
+        
         // Reset context
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1;
@@ -1003,6 +1033,7 @@ function endDragOrResize(e) {
         redrawAllStrokes();
         // Save strokes to localStorage logic would go here
     }
+
     
     // 4. Note Drawing End
     if (noteDrawing) {
@@ -1036,7 +1067,7 @@ function handleToolClick(e) {
     }
     
     // --- FIX: Apply correct settings when a tool is selected ---
-    if (tool === 'marker') {
+    if (tool === 'marker' || tool === 'washi-tape') {  // Treat washi-tape like marker
         currentStrokeColor = document.getElementById('stroke-color-input').value;
         currentOpacity = parseFloat(document.getElementById('opacity-slider').value);
     } else if (tool === 'highlight') {
@@ -1080,6 +1111,7 @@ function handleToolClick(e) {
         saveStickyNote(newNoteData); 
     }
 }
+
 
 
 /** Handles clicks on the floating sticky note toolbar */
@@ -1206,24 +1238,71 @@ function redrawAllStrokes() {
         } else if (stroke.tool === 'eraser') {
             ctx.globalCompositeOperation = 'destination-out';
             ctx.globalAlpha = 1.0;
-        } else { // 'marker'
+        } else { // 'marker' or 'washi-tape'
             ctx.globalCompositeOperation = 'source-over';
             ctx.globalAlpha = stroke.opacity;
         }
         // --- END FIX ---
         
-        if (stroke.points.length < 2) return; // Not enough points to draw
-
-        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-        for (let i = 1; i < stroke.points.length; i++) {
-            ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        if (stroke.tool === 'washi-tape' && stroke.points.length >= 2) {
+            // Draw straight line for washi-tape
+            const start = stroke.points[0];
+            const end = stroke.points[1];
+            ctx.moveTo(start.x, start.y);
+            ctx.lineTo(end.x, end.y);
+            ctx.stroke();
+            
+            // Add torn effect at start and end
+            drawTornEffect(ctx, start.x, start.y, end.x, end.y, stroke.width);
+        } else if (stroke.points.length >= 2) {
+            // Original logic for other tools
+            ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
     });
     
     // Reset composite operation and alpha for future operations
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
+}
+
+/**
+ * Draws a torn effect at the ends of a washi-tape line.
+ * @param {CanvasRenderingContext2D} ctx - The canvas context.
+ * @param {number} startX - Start X of the line.
+ * @param {number} startY - Start Y of the line.
+ * @param {number} endX - End X of the line.
+ * @param {number} endY - End Y of the line.
+ * @param {number} width - Stroke width for scaling the tears.
+ */
+function drawTornEffect(ctx, startX, startY, endX, endY, width) {
+    const tearSize = Math.max(width / 2, 5);  // Scale tear size based on stroke width
+    const angle = Math.atan2(endY - startY, endX - startX);  // Line direction
+    
+    // Helper to draw a zigzag tear at a point
+    const drawTear = (x, y, direction) => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle + direction * Math.PI / 2);  // Perpendicular to line
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(tearSize * 0.5, tearSize * 0.3);
+        ctx.lineTo(tearSize, 0);
+        ctx.lineTo(tearSize * 0.5, -tearSize * 0.3);
+        ctx.closePath();
+        ctx.fillStyle = ctx.strokeStyle;  // Match line color
+        ctx.fill();
+        ctx.restore();
+    };
+    
+    // Draw tears at start and end
+    drawTear(startX, startY, 1);  // One side at start
+    drawTear(startX, startY, -1); // Other side at start
+    drawTear(endX, endY, 1);     // One side at end
+    drawTear(endX, endY, -1);    // Other side at end
 }
 
 // --- Sticky Wall Initialization ---

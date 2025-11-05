@@ -928,5 +928,43 @@ textarea#task-description {
     margin: 0 5px;
 }
 
+/* === Washi Tape Toolbar === */
+#washi-toolbar {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  display: flex;
+  gap: 10px;
+  padding: 8px 15px;
+  z-index: 30;
+}
+
+.pattern-option {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  background-color: #fafafa;
+  font-size: 0.9em;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.pattern-option:hover {
+  background-color: #e8e0ff;
+  color: #6a40e1;
+}
+
+.pattern-option.active {
+  background-color: #6a40e1;
+  color: white;
+  border-color: #6a40e1;
+}
+
+
 #confirm-cancel-btn { background-color: #ccc; color: #333; }
 #confirm-delete-btn { background-color: #f44336; color: white; }
