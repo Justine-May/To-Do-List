@@ -973,3 +973,29 @@ textarea#task-description {
   pointer-events: auto;
   cursor: crosshair;
 }
+
+#washi-toolbar {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 6px 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+#washi-toolbar.hidden { display: none; }
+.pattern-option {
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #f0f0f0;
+}
+.pattern-option.active {
+  background: #d0e0ff;
+}
