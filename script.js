@@ -126,6 +126,10 @@ let isMoving = false;
 let lastX, lastY;
 let activeDraggable = null;
 
+// NEW STATE FOR STROKE DRAGGING
+let activeDraggableStroke = null; 
+let currentStroke = null; // New global state to track the stroke being drawn
+
 // Washi-specific state
 let isWashiDrawing = false;
 let washiStartX = 0, washiStartY = 0;
@@ -138,6 +142,39 @@ let isDrawingOnNote = false;
 let currentNoteCtx = null;
 let activeNote = null; // Currently selected sticky note DOM element
 const USERNAME = '@User';
+
+// --- STROKE MANAGEMENT FUNCTIONS (New Section for Persistence) ---
+function saveStrokes() {
+    localStorage.setItem('strokes', JSON.stringify(strokes));
+}
+
+function loadStrokes() {
+    const savedStrokes = localStorage.getItem('strokes');
+    if (savedStrokes) {
+        // Load strokes and ensure the 'bounds' property is present for older strokes
+        strokes = JSON.parse(savedStrokes).map(stroke => {
+            if (!stroke.bounds && stroke.points && stroke.points.length > 0) {
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                stroke.points.forEach(p => {
+                    minX = Math.min(minX, p.x);
+                    minY = Math.min(minY, p.y);
+                    maxX = Math.max(maxX, p.x);
+                    maxY = Math.max(maxY, p.y);
+                });
+                stroke.bounds = { minX, minY, maxX, maxY };
+            } else if (stroke.tool === 'washi-tape' && !stroke.bounds) {
+                 stroke.bounds = {
+                    minX: Math.min(stroke.start.x, stroke.end.x),
+                    minY: Math.min(stroke.start.y, stroke.end.y),
+                    maxX: Math.max(stroke.start.x, stroke.end.x),
+                    maxY: Math.max(stroke.start.y, stroke.end.y)
+                };
+            }
+            return stroke;
+        });
+    }
+}
+
 
 // --- TASK MANAGEMENT FUNCTIONS (Core) ---
 function saveTask(taskData) {
@@ -614,6 +651,40 @@ function endNoteDraw() {
     }
 }
 
+// --- NEW STROKE HIT TESTING ---
+/**
+ * Performs a simple bounding box hit test to find a draggable stroke under the cursor.
+ * @param {number} x Canvas X coordinate.
+ * @param {number} y Canvas Y coordinate.
+ * @returns {object|null} The found stroke object or null.
+ */
+function getStrokeUnderCursor(x, y) {
+    // Iterate from the latest stroke (top-most) backward
+    for (let i = strokes.length - 1; i >= 0; i--) {
+        const stroke = strokes[i];
+        
+        // Only look at tools we want to be draggable/selectable
+        if (!['marker', 'highlight', 'washi-tape'].includes(stroke.tool)) continue; 
+        
+        // Skip strokes without bounds (shouldn't happen with updated drawing, but as a safeguard)
+        if (!stroke.bounds) continue; 
+
+        // Add a buffer around the stroke's drawn area (easier clicking)
+        // Use washi width (e.g. 20) or marker/highlighter width, plus a safety margin (e.g. 5px)
+        const baseWidth = stroke.tool === 'washi-tape' ? 20 : stroke.width;
+        const buffer = Math.max(5, baseWidth / 2); 
+
+        // Check if cursor (x, y) is within the stroke's bounds + buffer
+        if (x >= stroke.bounds.minX - buffer && x <= stroke.bounds.maxX + buffer &&
+            y >= stroke.bounds.minY - buffer && y <= stroke.bounds.maxY + buffer) {
+            
+            return stroke;
+        }
+    }
+    return null;
+}
+
+
 // --- Mouse/Drag Handlers (Combined) ---
 let isResizing = false;
 let activeHandle = null;
@@ -654,8 +725,33 @@ function startDragOrResize(e) {
         startNoteDraw(e);
         return;
     }
+    
+    // --- NEW: STROKE DRAGGING CHECK ---
+    if (currentView === 'sticky-wall' && currentTool === 'select' && e.target === canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
-    // Dragging check
+        activeDraggableStroke = getStrokeUnderCursor(x, y);
+
+        if (activeDraggableStroke) {
+            isMoving = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            e.preventDefault();
+            
+            // Bring the stroke to the front by moving it to the end of the array
+            const index = strokes.indexOf(activeDraggableStroke);
+            if (index > -1) {
+                strokes.splice(index, 1);
+                strokes.push(activeDraggableStroke);
+            }
+            redrawAllStrokes();
+            return;
+        }
+    }
+
+    // Dragging check (Sticky Note)
     if (clickedNote && currentTool === 'select' && !isDrawingOnNote) {
         const contentArea = clickedNote.querySelector('.sticky-note-content');
         if (contentArea.contains(e.target)) {
@@ -702,33 +798,38 @@ function startDragOrResize(e) {
     // Main Canvas Drawing: other continuous tools (marker/highlighter/eraser)
     if (currentTool !== 'select' && currentTool !== 'washi-tape' && !isDrawingOnNote && e.target === canvas) {
         drawing = true;
-        const newStroke = {
+        const offsetX = e.offsetX;
+        const offsetY = e.offsetY;
+        
+        // Initialize currentStroke with bounds
+        currentStroke = {
             tool: currentTool,
             color: currentStrokeColor,
             width: currentStrokeWidth,
             opacity: currentTool === 'highlight' ? 0.3 : currentOpacity,
-            points: [{ x: e.offsetX, y: e.offsetY }]
+            points: [{ x: offsetX, y: offsetY }],
+            bounds: { minX: offsetX, minY: offsetY, maxX: offsetX, maxY: offsetY }
         };
-        strokes.push(newStroke);
+        strokes.push(currentStroke);
 
-        ctx.strokeStyle = newStroke.color;
-        ctx.lineWidth = newStroke.width;
+        ctx.strokeStyle = currentStroke.color;
+        ctx.lineWidth = currentStroke.width;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
         if (currentTool === 'highlight') {
             ctx.globalCompositeOperation = 'multiply';
-            ctx.globalAlpha = newStroke.opacity;
+            ctx.globalAlpha = currentStroke.opacity;
         } else if (currentTool === 'eraser') {
             ctx.globalCompositeOperation = 'destination-out';
             ctx.globalAlpha = 1.0;
         } else {
             ctx.globalCompositeOperation = 'source-over';
-            ctx.globalAlpha = newStroke.opacity;
+            ctx.globalAlpha = currentStroke.opacity;
         }
 
         ctx.beginPath();
-        ctx.moveTo(e.offsetX, e.offsetY);
+        ctx.moveTo(offsetX, offsetY);
         e.preventDefault();
         return;
     }
@@ -796,7 +897,40 @@ function dragOrResize(e) {
         return;
     }
 
-    // Dragging Logic
+    // --- NEW: STROKE DRAGGING LOGIC ---
+    if (isMoving && activeDraggableStroke) {
+        e.preventDefault();
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+
+        // Apply movement to points
+        activeDraggableStroke.points.forEach(point => {
+            point.x += dx;
+            point.y += dy;
+        });
+
+        // Washi tape needs its start/end updated too
+        if (activeDraggableStroke.tool === 'washi-tape') {
+            activeDraggableStroke.start.x += dx;
+            activeDraggableStroke.start.y += dy;
+            activeDraggableStroke.end.x += dx;
+            activeDraggableStroke.end.y += dy;
+        }
+
+        // Update bounds
+        activeDraggableStroke.bounds.minX += dx;
+        activeDraggableStroke.bounds.minY += dy;
+        activeDraggableStroke.bounds.maxX += dx;
+        activeDraggableStroke.bounds.maxY += dy;
+
+        redrawAllStrokes();
+
+        lastX = e.clientX;
+        lastY = e.clientY;
+        return;
+    }
+
+    // Dragging Logic (Sticky Note)
     if (isMoving && activeDraggable) {
         e.preventDefault();
         const dx = e.clientX - lastX;
@@ -823,8 +957,8 @@ function dragOrResize(e) {
     // Main Canvas Drawing Logic (continuous)
     if (drawing && e.target === canvas) {
         e.preventDefault();
-        const currentStroke = strokes[strokes.length - 1];
-
+        const currentStroke = strokes[strokes.length - 1]; 
+        
         ctx.strokeStyle = currentStroke.color;
         ctx.lineWidth = currentStroke.width;
         ctx.lineCap = 'round';
@@ -846,6 +980,12 @@ function dragOrResize(e) {
 
         const newPoint = { x: e.offsetX, y: e.offsetY };
         currentStroke.points.push(newPoint);
+        
+        // Update bounds for continuous drawing
+        currentStroke.bounds.minX = Math.min(currentStroke.bounds.minX, newPoint.x);
+        currentStroke.bounds.minY = Math.min(currentStroke.bounds.minY, newPoint.y);
+        currentStroke.bounds.maxX = Math.max(currentStroke.bounds.maxX, newPoint.x);
+        currentStroke.bounds.maxY = Math.max(currentStroke.bounds.maxY, newPoint.y);
 
         ctx.beginPath();
         ctx.moveTo(e.offsetX, e.offsetY);
@@ -886,22 +1026,31 @@ function endDragOrResize(e) {
     }
 
     // Dragging End
-    if (isMoving && activeDraggable) {
-        isMoving = false;
-        activeDraggable.classList.remove('is-moving');
+    if (isMoving) {
+        if (activeDraggable) {
+            // Sticky Note Save
+            isMoving = false;
+            activeDraggable.classList.remove('is-moving');
 
-        const noteId = parseInt(activeDraggable.getAttribute('data-note-id'));
-        const note = stickyNotes.find(n => n.id === noteId);
-        if (note) {
-            note.canvasX = parseInt(activeDraggable.style.left) || 0;
-            note.canvasY = parseInt(activeDraggable.style.top) || 0;
-            saveStickyNote(note);
+            const noteId = parseInt(activeDraggable.getAttribute('data-note-id'));
+            const note = stickyNotes.find(n => n.id === noteId);
+            if (note) {
+                note.canvasX = parseInt(activeDraggable.style.left) || 0;
+                note.canvasY = parseInt(activeDraggable.style.top) || 0;
+                saveStickyNote(note);
+            }
+            activeDraggable = null;
+
+            if (activeNote) {
+                updateNoteToolbarState();
+                noteFloatingToolbar?.classList.remove('hidden');
+            }
         }
-        activeDraggable = null;
-
-        if (activeNote) {
-            updateNoteToolbarState();
-            noteFloatingToolbar?.classList.remove('hidden');
+        // --- NEW: STROKE DRAGGING END ---
+        else if (activeDraggableStroke) {
+            isMoving = false;
+            saveStrokes();
+            activeDraggableStroke = null;
         }
     }
 
@@ -911,6 +1060,7 @@ function endDragOrResize(e) {
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1;
         redrawAllStrokes();
+        saveStrokes(); // Save marker/highlight stroke
     }
 
     // Washi Tape end (straight-line)
@@ -931,11 +1081,20 @@ function endDragOrResize(e) {
             opacity: 1.0,
             pattern: currentWashiPattern,
             start: { x: washiStartX, y: washiStartY },
-            end: { x: endX, y: endY }
+            end: { x: endX, y: endY },
+            // Add points/bounds for dragging
+            points: [{ x: washiStartX, y: washiStartY }, { x: endX, y: endY }], 
+            bounds: {
+                minX: Math.min(washiStartX, endX),
+                minY: Math.min(washiStartY, endY),
+                maxX: Math.max(washiStartX, endX),
+                maxY: Math.max(washiStartY, endY)
+            }
         };
 
         strokes.push(washiStroke);
         redrawAllStrokes();
+        saveStrokes(); // Save washi stroke
 
         // hide floating toolbar once placed
         hideFloatingWashiToolbar();
@@ -1733,6 +1892,9 @@ document.addEventListener('DOMContentLoaded', () => {
         stickyNotes = JSON.parse(storedNotes);
         stickyNoteIdCounter = parseInt(localStorage.getItem('stickyNoteIdCounter')) || (stickyNotes.length > 0 ? Math.max(...stickyNotes.map(n => n.id)) + 1 : 1);
     }
+    
+    // Load persisted strokes
+    loadStrokes();
 
     if (canvas && corkboard) initializeStickyWall();
 
@@ -1836,10 +1998,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('undo-btn')?.addEventListener('click', () => {
         strokes.pop();
         redrawAllStrokes();
+        saveStrokes();
     });
     document.getElementById('clear-all-btn')?.addEventListener('click', () => {
         strokes = [];
         redrawAllStrokes();
+        saveStrokes();
     });
 
     // initial creation of the floating washi toolbar (hidden)
