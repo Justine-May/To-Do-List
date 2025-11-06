@@ -1,3 +1,5 @@
+// === script.js (FULL, integrated) ===
+
 // --- Custom Confirmation Dialog Implementation (From Matrix Script) ---
 const confirmDialog = document.getElementById('custom-confirm-dialog');
 const confirmMessage = document.getElementById('confirm-message');
@@ -112,13 +114,14 @@ const currentFontDisplay = document.getElementById('current-font-display');
 const currentSizeDisplay = document.getElementById('current-size-display');
 const noteDrawToggleBtn = document.querySelector('.note-draw-toggle');
 
-// Previously static washiPatternButtons/washiToolbar - we'll generate a floating washi toolbar dynamically
-let floatingWashiToolbar = null;
+// Washi toolbar container (we will generate floating toolbar dynamically)
+const washiToolbar = document.getElementById('washi-toolbar'); // optional existing, but we will generate floating toolbar via JS
+const washiPatternButtons = document.querySelectorAll('.pattern-option');
 
 // Drawing state (Main Canvas)
 let drawing = false;
 let currentTool = 'select';
-let currentStrokeColor = 'black';
+let currentStrokeColor = '#ff6b6b'; // default coral as requested
 let currentStrokeWidth = 5;
 let currentOpacity = 1;
 let strokes = []; // Array to store all drawn strokes
@@ -129,9 +132,15 @@ let activeDraggable = null;
 // Washi-specific state
 let isWashiDrawing = false;
 let washiStartX = 0, washiStartY = 0;
-let currentWashiPattern = 'diagonal';
-let currentWashiColor = '#ff6b6b'; // Default initial coral (neutral before pop)
-let washiToolbarShownForStroke = null; // reference to the toolbar tied to current stroke
+let currentWashiPattern = (washiPatternButtons[0]?.dataset.pattern) || 'diagonal';
+let currentWashiColor = '#ff6b6b'; // default coral
+let washiFloatingToolbarEl = null;
+
+// Selected washi stroke (index into strokes array)
+let selectedWashiIndex = -1;
+let washiDragging = false;
+let washiLastMouseX = 0;
+let washiLastMouseY = 0;
 
 // Drawing state (Note Canvas)
 let isDrawingOnNote = false;
@@ -409,7 +418,7 @@ function createStickyNote(note) {
         }
     });
     content.addEventListener('blur', () => {
-        const noteToSave = stickyNotes.find(n => n.id === note.id);
+        const noteToSave = stickyNotes.find(n => n.id == note.id);
         if (noteToSave) {
             saveStickyNote(noteToSave);
         }
@@ -622,6 +631,7 @@ let initialNoteWidth, initialNoteHeight, initialMouseX, initialMouseY, initialNo
 function startDragOrResize(e) {
     if (e.button !== 0 || !corkboard) return;
 
+    // If clicking toolbar area, ignore global close
     if (!e.target.closest('#note-floating-toolbar')) {
         document.querySelectorAll('.note-dropdown-menu').forEach(m => m.classList.remove('visible'));
     }
@@ -655,7 +665,7 @@ function startDragOrResize(e) {
         return;
     }
 
-    // Dragging check
+    // Dragging sticky note check
     if (clickedNote && currentTool === 'select' && !isDrawingOnNote) {
         const contentArea = clickedNote.querySelector('.sticky-note-content');
         if (contentArea.contains(e.target)) {
@@ -685,22 +695,61 @@ function startDragOrResize(e) {
         return;
     }
 
-    // Main Canvas Drawing: special-case for Washi Tape (straight line)
-    if (currentTool === 'washi-tape' && !isDrawingOnNote && e.target === canvas) {
+    // MAIN CANVAS INTERACTIONS (canvas may be target or inside corkboard)
+    const targetIsCanvas = (e.target === canvas);
+
+    // If current tool is washi-tape: start drawing a new tape
+    if (currentTool === 'washi-tape' && !isDrawingOnNote && targetIsCanvas) {
         isWashiDrawing = true;
         const rect = canvas.getBoundingClientRect();
         washiStartX = e.clientX - rect.left;
         washiStartY = e.clientY - rect.top;
 
-        // show or create the floating washi toolbar at starting point
-        showFloatingWashiToolbarAt(washiStartX, washiStartY);
+        // ensure color/current settings reflect toolbar picks
+        currentWashiColor = currentWashiColor || currentStrokeColor || '#ff6b6b';
+        currentStrokeColor = currentWashiColor;
+        currentWashiPattern = currentWashiPattern || 'diagonal';
+
+        // show floating washi toolbar anchored at the start point
+        showWashiFloatingToolbar(washiStartX, washiStartY);
 
         e.preventDefault();
         return;
     }
 
+    // If click on canvas while in select tool, check if user clicked near an existing washi stroke -> select & begin dragging it
+    if (currentTool === 'select' && targetIsCanvas) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const idx = findWashiAtPoint(x, y, 8); // threshold 8 px
+        if (idx !== -1) {
+            // select this washi
+            selectedWashiIndex = idx;
+            // show toolbar anchored at the selected tape's starting point
+            const s = strokes[idx];
+            showWashiFloatingToolbar(s.start.x, s.start.y, idx);
+
+            // start dragging immediately (live movement)
+            washiDragging = true;
+            washiLastMouseX = e.clientX;
+            washiLastMouseY = e.clientY;
+
+            // set cursor
+            canvas.style.cursor = 'grabbing';
+            corkboard.style.cursor = 'grabbing';
+
+            e.preventDefault();
+            return;
+        } else {
+            // clicked empty space on canvas: deselect any selected washi
+            deselectWashi();
+        }
+    }
+
     // Main Canvas Drawing: other continuous tools (marker/highlighter/eraser)
-    if (currentTool !== 'select' && currentTool !== 'washi-tape' && !isDrawingOnNote && e.target === canvas) {
+    if (currentTool !== 'select' && currentTool !== 'washi-tape' && !isDrawingOnNote && targetIsCanvas) {
         drawing = true;
         const newStroke = {
             tool: currentTool,
@@ -733,7 +782,7 @@ function startDragOrResize(e) {
         return;
     }
 
-    // Clicked outside
+    // Clicked outside any note area: hide note toolbar and deselect note
     if (activeNote && !e.target.closest('.sticky-note') && !e.target.closest('#note-floating-toolbar')) {
         activeNote.classList.remove('active-note');
         noteFloatingToolbar?.classList.add('hidden');
@@ -796,7 +845,7 @@ function dragOrResize(e) {
         return;
     }
 
-    // Dragging Logic
+    // Dragging sticky note
     if (isMoving && activeDraggable) {
         e.preventDefault();
         const dx = e.clientX - lastX;
@@ -817,6 +866,30 @@ function dragOrResize(e) {
         lastY = e.clientY;
 
         updateNoteToolbarPosition(activeDraggable);
+        return;
+    }
+
+    // Move selected washi if dragging
+    if (washiDragging && selectedWashiIndex !== -1) {
+        e.preventDefault();
+        const dx = e.clientX - washiLastMouseX;
+        const dy = e.clientY - washiLastMouseY;
+        washiLastMouseX = e.clientX;
+        washiLastMouseY = e.clientY;
+
+        // shift the selected washi stroke by dx/dy (in canvas coords)
+        const rect = canvas.getBoundingClientRect();
+        // dx/dy in px are already window coords difference; we can apply them directly to stroke positions
+        const s = strokes[selectedWashiIndex];
+        s.start.x += dx;
+        s.start.y += dy;
+        s.end.x += dx;
+        s.end.y += dy;
+
+        // update toolbar position to stay anchored at the start point
+        updateWashiFloatingToolbarPosition(s.start.x, s.start.y);
+
+        redrawAllStrokes();
         return;
     }
 
@@ -885,7 +958,7 @@ function endDragOrResize(e) {
         }
     }
 
-    // Dragging End
+    // Dragging End (sticky note)
     if (isMoving && activeDraggable) {
         isMoving = false;
         activeDraggable.classList.remove('is-moving');
@@ -913,32 +986,46 @@ function endDragOrResize(e) {
         redrawAllStrokes();
     }
 
-    // Washi Tape end (straight-line)
+    // Washi Tape end (straight-line) when drawing new tape
     if (isWashiDrawing && e.target === canvas) {
         isWashiDrawing = false;
         const rect = canvas.getBoundingClientRect();
         const endX = e.clientX - rect.left;
         const endY = e.clientY - rect.top;
 
-        // sudden "color pop": convert neutral currentWashiColor to vibrant immediately on placement
-        const vibrant = makeColorVibrant(currentWashiColor);
-
-        // Create washi stroke object with vibrant color (opacity 1)
+        // Create washi stroke object
         const washiStroke = {
             tool: 'washi-tape',
-            color: vibrant,
+            color: currentWashiColor || currentStrokeColor || '#ff6b6b',
             width: currentStrokeWidth,
-            opacity: 1.0,
+            opacity: 1.0, // full opacity as requested
             pattern: currentWashiPattern,
             start: { x: washiStartX, y: washiStartY },
-            end: { x: endX, y: endY }
+            end: { x: endX, y: endY },
+            selected: false
         };
 
         strokes.push(washiStroke);
-        redrawAllStrokes();
 
-        // hide floating toolbar once placed
-        hideFloatingWashiToolbar();
+        // selection: select the newly placed washi
+        selectedWashiIndex = strokes.length - 1;
+        strokes[selectedWashiIndex].selected = true;
+        // show toolbar anchored at start point (stays fixed there)
+        showWashiFloatingToolbar(washiStartX, washiStartY, selectedWashiIndex);
+
+        redrawAllStrokes();
+    }
+
+    // End dragging selected washi (if was dragging)
+    if (washiDragging) {
+        washiDragging = false;
+        canvas.style.cursor = '';
+        corkboard.style.cursor = '';
+        if (selectedWashiIndex !== -1) {
+            strokes[selectedWashiIndex].selected = true;
+            // ensure persisted to localStorage if you want (not required but recommended)
+            // optionally save strokes to localStorage if you use persistent drawing
+        }
     }
 
     // Note Drawing End
@@ -976,16 +1063,19 @@ function handleToolClick(e) {
         currentOpacity = 1.0;
     }
 
-    // Show/hide washi toolbar (we now create a floating toolbar)
+    // Show/hide washi toolbar (we use our floating toolbar generator)
     if (tool === 'washi-tape') {
-        // ensure default values when user selects the tool
-        currentWashiColor = '#ff6b6b'; // neutral coral default
-        currentWashiPattern = 'diagonal';
-        // show minimal floating toolbar near center top of corkboard (until user starts drawing)
-        showFloatingWashiToolbarAt(corkboard.clientWidth / 2, 60);
+        // If we have an existing selected washi, show toolbar anchored at its start.
+        if (selectedWashiIndex !== -1 && strokes[selectedWashiIndex]?.tool === 'washi-tape') {
+            const s = strokes[selectedWashiIndex];
+            showWashiFloatingToolbar(s.start.x, s.start.y, selectedWashiIndex);
+        } else {
+            // otherwise, toolbar will show when user mousedown to start a new tape
+            hideWashiFloatingToolbar();
+        }
     } else {
-        // hide toolbar when leaving washi
-        hideFloatingWashiToolbar();
+        // hide floating washi toolbar when not in washi tool
+        hideWashiFloatingToolbar();
     }
 
     if (tool !== 'select' && activeNote) {
@@ -1114,11 +1204,7 @@ function createPatternSafe(patternCanvas) {
     }
 }
 
-/**
- * Create a small repeating pattern canvas for washi.
- * Accepts an optional color (hex) that will be used for strokes/dots in the preview/tape.
- */
-function makePatternForWashi(patternName, color = '#b7b0ac') {
+function makePatternForWashi(patternName) {
     const patternCanvas = document.createElement('canvas');
     patternCanvas.width = 20;
     patternCanvas.height = 20;
@@ -1128,24 +1214,25 @@ function makePatternForWashi(patternName, color = '#b7b0ac') {
     pctx.fillStyle = '#fbfaf6';
     pctx.fillRect(0, 0, patternCanvas.width, patternCanvas.height);
 
+    // pattern shapes in a neutral gray so they read over the colored base
     if (patternName === 'diagonal') {
-        pctx.strokeStyle = color;
+        pctx.strokeStyle = '#b7b0ac';
         pctx.lineWidth = 2;
         pctx.beginPath();
         pctx.moveTo(0, patternCanvas.height);
         pctx.lineTo(patternCanvas.width, 0);
         pctx.stroke();
     } else if (patternName === 'dots') {
-        pctx.fillStyle = color;
+        pctx.fillStyle = '#b7b0ac';
         for (let y = 5; y < patternCanvas.height; y += 10) {
             for (let x = 5; x < patternCanvas.width; x += 10) {
                 pctx.beginPath();
-                pctx.arc(x, y, 1.6, 0, Math.PI * 2);
+                pctx.arc(x, y, 1.5, 0, Math.PI * 2);
                 pctx.fill();
             }
         }
     } else if (patternName === 'grid') {
-        pctx.strokeStyle = color;
+        pctx.strokeStyle = '#d0cfcf';
         pctx.lineWidth = 1;
         for (let i = 0; i < patternCanvas.width; i += 5) {
             pctx.beginPath();
@@ -1155,85 +1242,28 @@ function makePatternForWashi(patternName, color = '#b7b0ac') {
             pctx.lineTo(patternCanvas.width, i);
             pctx.stroke();
         }
-    } else { // plain - leave base
+    } else { // plain
+        // already filled with base
     }
 
     return createPatternSafe(patternCanvas);
 }
 
 /**
- * Make a color "vibrant" by increasing lightness or saturation.
- * Simple HSL conversion to boost saturation and/or lightness quickly.
- */
-function makeColorVibrant(hex) {
-    // convert hex to HSL, boost saturation/lightness, return hex
-    const rgb = hexToRgb(hex);
-    if (!rgb) return hex;
-    let [h, s, l] = rgbToHsl(rgb.r, rgb.g, rgb.b);
-    s = Math.min(1, s * 1.35 + 0.05);
-    l = Math.min(1, l * 1.08 + 0.03);
-    const rgb2 = hslToRgb(h, s, l);
-    return rgbToHex(Math.round(rgb2.r), Math.round(rgb2.g), Math.round(rgb2.b));
-}
-
-/* Color helpers */
-function hexToRgb(hex) {
-    if (!hex) return null;
-    hex = hex.replace('#', '');
-    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-    const bigint = parseInt(hex, 16);
-    return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
-}
-function rgbToHex(r, g, b) {
-    return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
-}
-function rgbToHsl(r, g, b) {
-    r /= 255; g /= 255; b /= 255;
-    const max = Math.max(r,g,b), min = Math.min(r,g,b);
-    let h, s, l = (max + min) / 2;
-    if (max === min) { h = s = 0; }
-    else {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-            case g: h = (b - r) / d + 2; break;
-            case b: h = (r - g) / d + 4; break;
-        }
-        h /= 6;
-    }
-    return [h, s, l];
-}
-function hslToRgb(h, s, l) {
-    let r, g, b;
-    if (s === 0) r = g = b = l;
-    else {
-        function hue2rgb(p, q, t) {
-            if (t < 0) t += 1;
-            if (t > 1) t -= 1;
-            if (t < 1/6) return p + (q - p) * 6 * t;
-            if (t < 1/2) return q;
-            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-            return p;
-        }
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        const p = 2 * l - q;
-        r = hue2rgb(p, q, h + 1/3);
-        g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1/3);
-    }
-    return { r: r * 255, g: g * 255, b: b * 255 };
-}
-
-/**
- * Create ripped/torn mask on an offscreen context near the edges (destination-out).
- * Reused by drawWashiOnMain.
+ * Create a ripped/torn mask on an offscreen context near the edges.
+ * We'll 'cut' into the tape to produce transparent jagged edges using destination-out.
+ *
+ * offCtx: offscreen ctx
+ * length: length of jagged cut (in px)
+ * cornerX, cornerY: coordinates in offscreen canvas where the torn cut should be drawn
+ * angle: angle in radians of the tape direction (so torn aligns)
  */
 function cutRippedEdge(offCtx, cornerX, cornerY, angle, maxLength) {
     offCtx.save();
     offCtx.translate(cornerX, cornerY);
     offCtx.rotate(angle);
 
+    // draw several overlapping small semicircles / jagged shapes and use destination-out to subtract
     offCtx.globalCompositeOperation = 'destination-out';
     offCtx.fillStyle = 'rgba(0,0,0,1)';
 
@@ -1248,6 +1278,7 @@ function cutRippedEdge(offCtx, cornerX, cornerY, angle, maxLength) {
         offCtx.fill();
     }
 
+    // add a feathered semi-transparent removal to soften
     offCtx.globalCompositeOperation = 'destination-out';
     offCtx.beginPath();
     offCtx.moveTo(0, 0);
@@ -1260,12 +1291,13 @@ function cutRippedEdge(offCtx, cornerX, cornerY, angle, maxLength) {
 }
 
 /**
- * Draws a washi tape segment with pattern + vibrant overlay + ripped ends.
- * Uses offscreen canvas to create proper transparency and texture.
+ * Draws a washi tape segment with vibrant base color + subtle pattern overlay + ripped ends.
+ * Implementation uses an offscreen canvas where we draw a horizontal tape and then blit to main ctx.
  */
-function drawWashiOnMain(stroke) {
+function drawWashiOnMain(stroke, highlight=false) {
     if (!ctx || !canvas) return;
 
+    // Calculate vector
     const sx = stroke.start.x, sy = stroke.start.y;
     const ex = stroke.end.x, ey = stroke.end.y;
     const dx = ex - sx, dy = ey - sy;
@@ -1273,10 +1305,12 @@ function drawWashiOnMain(stroke) {
     if (length < 2) return;
 
     const angle = Math.atan2(dy, dx);
-    const padding = Math.ceil(stroke.width * 2);
+
+    const padding = Math.ceil(stroke.width * 3); // padding around tape for torn edges & outline
     const offW = Math.ceil(length + padding * 2);
     const offH = Math.ceil(stroke.width + padding * 2);
 
+    // Offscreen canvas
     const off = document.createElement('canvas');
     off.width = offW;
     off.height = offH;
@@ -1285,38 +1319,41 @@ function drawWashiOnMain(stroke) {
     // Move origin to padding, mid-line
     offCtx.translate(padding, offH / 2);
 
-    // create pattern using the stroke color for previews and final tape
-    const pattern = makePatternForWashi(stroke.pattern || 'diagonal', stroke.color);
+    // 0) Optionally draw white outline below for selected highlight (drawn on main ctx after blit for crispness)
+    // We'll handle highlight on main ctx after we draw the tape.
 
-    // 1) fill a thick line with pattern
+    // 1) Fill a thick base line with the vibrant color (100% opacity)
     offCtx.save();
     offCtx.beginPath();
     offCtx.lineCap = 'butt';
     offCtx.lineJoin = 'miter';
-    offCtx.strokeStyle = pattern;
+    offCtx.strokeStyle = stroke.color || '#ff6b6b';
     offCtx.lineWidth = stroke.width;
     offCtx.moveTo(0, 0);
     offCtx.lineTo(length, 0);
     offCtx.stroke();
     offCtx.restore();
 
-    // 2) vibrant base overlay (solid color at 100% opacity to make it visible)
-    offCtx.save();
-    offCtx.globalAlpha = 1.0; // 100% opacity per request
-    offCtx.strokeStyle = stroke.color || '#ff6b6b';
-    offCtx.lineWidth = stroke.width * 0.6; // smaller base to keep pattern visible
-    offCtx.beginPath();
-    offCtx.moveTo(0, 0);
-    offCtx.lineTo(length, 0);
-    offCtx.stroke();
-    offCtx.restore();
+    // 2) Pattern overlay (subtle) using pattern canvas tinted by neutral (so pattern reads on top)
+    const pattern = makePatternForWashi(stroke.pattern || 'diagonal');
+    if (pattern && typeof pattern !== 'string') {
+        offCtx.save();
+        offCtx.globalAlpha = 0.18; // subtle texture on top of the color
+        offCtx.strokeStyle = pattern;
+        offCtx.lineWidth = stroke.width;
+        offCtx.beginPath();
+        offCtx.moveTo(0, 0);
+        offCtx.lineTo(length, 0);
+        offCtx.stroke();
+        offCtx.restore();
+    }
 
-    // 3) create ripped edges by cutting shapes at start & end using destination-out
+    // 3) create ripped edges by cutting (destination-out) small jagged shapes at start & end
     const tearLen = Math.min(28, Math.max(12, stroke.width * 1.6));
     cutRippedEdge(offCtx, 0, 0, Math.PI, tearLen);
     cutRippedEdge(offCtx, length, 0, 0, tearLen);
 
-    // 4) subtle shadow under tape to lift it visually
+    // 4) subtle shadow along bottom to lift the tape
     offCtx.save();
     offCtx.globalCompositeOperation = 'source-over';
     offCtx.fillStyle = 'rgba(0,0,0,0.06)';
@@ -1325,11 +1362,29 @@ function drawWashiOnMain(stroke) {
     offCtx.fill();
     offCtx.restore();
 
-    // 5) draw offscreen onto main canvas with rotation & position
+    // 5) Draw the offscreen canvas onto main canvas with rotation and positioning
     ctx.save();
+
+    // If stroke is selected, draw neutral white outline BEFORE drawing the tape (so it sits under the tape)
+    if (stroke.selected) {
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(angle);
+        ctx.lineWidth = stroke.width + 8; // outline thickness
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)'; // neutral white outline
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(length, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
+
     ctx.translate(sx, sy);
     ctx.rotate(angle);
+    // draw offscreen at position (-padding, -offH/2)
     ctx.drawImage(off, -padding, -offH/2);
+
     ctx.restore();
 }
 
@@ -1338,9 +1393,9 @@ function redrawAllStrokes() {
     if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw non-washi strokes first
+    // Draw non-washi strokes first (so washi can overlap them if needed)
     strokes.forEach(stroke => {
-        if (stroke.tool === 'washi-tape') return;
+        if (stroke.tool === 'washi-tape') return; // skip here
         ctx.beginPath();
         ctx.strokeStyle = stroke.color;
         ctx.lineWidth = stroke.width;
@@ -1359,6 +1414,7 @@ function redrawAllStrokes() {
         }
 
         if (!stroke.points || stroke.points.length < 2) {
+            // single point
             if (stroke.points && stroke.points.length === 1) {
                 ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
                 ctx.lineTo(stroke.points[0].x + 0.1, stroke.points[0].y + 0.1);
@@ -1372,7 +1428,7 @@ function redrawAllStrokes() {
         ctx.stroke();
     });
 
-    // Then draw washi strokes on top
+    // Then draw washi strokes (so they appear on top)
     for (let i = 0; i < strokes.length; i++) {
         const stroke = strokes[i];
         if (stroke.tool === 'washi-tape') {
@@ -1384,259 +1440,368 @@ function redrawAllStrokes() {
     ctx.globalAlpha = 1;
 }
 
-// --- Floating Washi Toolbar (Dynamically generated) ---
-// Minimalist UI: small rounded container, soft shadow, small previews & color swatches
-const WASHI_PATTERNS = ['diagonal', 'dots', 'grid', 'plain'];
-const WASHI_COLOR_SWATCHES = [
-    '#ff6b6b', // coral default
-    '#ff9472',
-    '#6bc7ff',
-    '#ffd56b',
-    '#7dff9b',
-    '#d38bff',
-    '#ffb3d1'
+// --- Helpers: Picking & Geometry for washi selection ---
+// Distance from point p to line segment v-w
+function pointToSegmentDistance(px, py, vx, vy, wx, wy) {
+    const l2 = (wx - vx) * (wx - vx) + (wy - vy) * (wy - vy);
+    if (l2 === 0) return Math.hypot(px - vx, py - vy);
+    let t = ((px - vx) * (wx - vx) + (py - vy) * (wy - vy)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    const projx = vx + t * (wx - vx);
+    const projy = vy + t * (wy - vy);
+    return Math.hypot(px - projx, py - projy);
+}
+
+// Find index of washi stroke under (x,y) within threshold, prioritized topmost (search backwards)
+function findWashiAtPoint(x, y, threshold=8) {
+    for (let i = strokes.length - 1; i >= 0; i--) {
+        const s = strokes[i];
+        if (s.tool !== 'washi-tape') continue;
+        const d = pointToSegmentDistance(x, y, s.start.x, s.start.y, s.end.x, s.end.y);
+        if (d <= threshold) return i;
+    }
+    return -1;
+}
+
+// Deselect washi & hide toolbar
+function deselectWashi() {
+    if (selectedWashiIndex !== -1 && strokes[selectedWashiIndex]) {
+        strokes[selectedWashiIndex].selected = false;
+    }
+    selectedWashiIndex = -1;
+    hideWashiFloatingToolbar();
+    redrawAllStrokes();
+}
+
+// --- Floating Washi Toolbar (dynamically created) ---
+// Patterns available:
+const AVAILABLE_WASHI_PATTERNS = [
+    { key: 'diagonal', label: 'Diagonal' },
+    { key: 'dots', label: 'Dots' },
+    { key: 'grid', label: 'Grid' },
+    { key: 'plain', label: 'Plain' }
 ];
 
-function createFloatingWashiToolbar() {
-    if (floatingWashiToolbar) return floatingWashiToolbar;
+function createWashiFloatingToolbar() {
+    // If already exists, return it
+    if (washiFloatingToolbarEl) return washiFloatingToolbarEl;
 
-    const wrapper = document.createElement('div');
-    wrapper.id = 'floating-washi-toolbar';
-    // base styles (minimalist)
-    Object.assign(wrapper.style, {
+    const el = document.createElement('div');
+    el.id = 'washi-floating-toolbar';
+    // Minimalist flat UI inline styles (you can move these to CSS)
+    Object.assign(el.style, {
         position: 'absolute',
-        zIndex: 1000,
+        zIndex: 2000,
+        background: '#ffffff',
+        borderRadius: '10px',
+        boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+        padding: '8px 10px',
         display: 'flex',
         gap: '8px',
-        padding: '8px',
-        background: '#ffffff',
-        borderRadius: '12px',
-        boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
         alignItems: 'center',
-        transform: 'translate(-50%, -120%)', // place above the start point by default
-        pointerEvents: 'auto',
-        userSelect: 'none',
+        transition: 'transform 0.18s ease, opacity 0.18s ease',
+        opacity: '0',
+        transform: 'translateY(-6px)',
         fontFamily: 'Inter, sans-serif',
-        fontSize: '12px'
+        fontSize: '13px',
+        pointerEvents: 'auto'
     });
 
-    // Patterns group (small previews)
-    const patternsGroup = document.createElement('div');
-    patternsGroup.style.display = 'flex';
-    patternsGroup.style.gap = '6px';
-    patternsGroup.style.alignItems = 'center';
+    // Patterns container
+    const patternsWrap = document.createElement('div');
+    patternsWrap.style.display = 'flex';
+    patternsWrap.style.gap = '6px';
+    patternsWrap.style.alignItems = 'center';
 
-    WASHI_PATTERNS.forEach(patt => {
+    AVAILABLE_WASHI_PATTERNS.forEach(p => {
         const btn = document.createElement('button');
         btn.className = 'washi-pattern-btn';
-        btn.setAttribute('data-pattern', patt);
+        btn.type = 'button';
+        btn.dataset.pattern = p.key;
         Object.assign(btn.style, {
-            width: '36px',
-            height: '28px',
-            borderRadius: '6px',
-            padding: '4px',
             border: 'none',
+            background: '#f7f7f7',
+            padding: '6px',
+            borderRadius: '8px',
             cursor: 'pointer',
-            background: '#fff',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            gap: '6px',
+            minWidth: '36px',
+            boxShadow: 'none',
         });
 
-        // create small preview canvas
-        const preview = document.createElement('canvas');
-        preview.width = 28;
-        preview.height = 20;
-        preview.style.width = '28px';
-        preview.style.height = '20px';
-        preview.style.borderRadius = '4px';
-        preview.style.display = 'block';
+        // small preview swatch: circular color swatch + tiny pattern preview (we will use a small canvas)
+        const sw = document.createElement('canvas');
+        sw.width = 24;
+        sw.height = 24;
+        sw.style.borderRadius = '50%';
+        sw.style.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.06)';
+        sw.style.display = 'block';
 
-        // draw preview using currentWashiColor
-        const pctx = preview.getContext('2d');
-        // fill base
-        pctx.fillStyle = '#fbfaf6';
-        pctx.fillRect(0,0,preview.width,preview.height);
-        // pattern (use a small scale, pass current color)
-        drawPatternPreviewOnCtx(pctx, patt, currentWashiColor, preview.width, preview.height);
+        // draw preview
+        const swCtx = sw.getContext('2d');
+        // base circle with currentWashiColor
+        swCtx.fillStyle = currentWashiColor || '#ff6b6b';
+        swCtx.beginPath();
+        swCtx.arc(12, 12, 10, 0, Math.PI * 2);
+        swCtx.fill();
 
-        btn.appendChild(preview);
-        patternsGroup.appendChild(btn);
+        // small overlay pattern (contrasting darker)
+        swCtx.globalAlpha = 0.15;
+        swCtx.strokeStyle = '#000';
+        swCtx.lineWidth = 1;
+        if (p.key === 'diagonal') {
+            swCtx.beginPath();
+            swCtx.moveTo(4, 18);
+            swCtx.lineTo(18, 4);
+            swCtx.stroke();
+        } else if (p.key === 'dots') {
+            swCtx.fillStyle = 'rgba(0,0,0,0.25)';
+            swCtx.beginPath(); swCtx.arc(8,8,1,0,Math.PI*2); swCtx.fill();
+            swCtx.beginPath(); swCtx.arc(16,16,1,0,Math.PI*2); swCtx.fill();
+        } else if (p.key === 'grid') {
+            swCtx.beginPath();
+            swCtx.moveTo(6, 4); swCtx.lineTo(6,20);
+            swCtx.moveTo(12,4); swCtx.lineTo(12,20);
+            swCtx.moveTo(4,6); swCtx.lineTo(20,6);
+            swCtx.moveTo(4,12); swCtx.lineTo(20,12);
+            swCtx.stroke();
+        }
 
+        btn.appendChild(sw);
+
+        // click handler
         btn.addEventListener('click', (ev) => {
-            currentWashiPattern = patt;
-            // mark active visually
-            patternsGroup.querySelectorAll('.washi-pattern-btn').forEach(b => b.style.outline = 'none');
-            btn.style.outline = '2px solid rgba(106,64,225,0.12)';
-            btn.style.borderRadius = '6px';
-            // update live previews (if needed) - no extra action required
-        });
-    });
-
-    // Colors group (small circular swatches)
-    const colorsGroup = document.createElement('div');
-    colorsGroup.style.display = 'flex';
-    colorsGroup.style.gap = '6px';
-    colorsGroup.style.alignItems = 'center';
-
-    WASHI_COLOR_SWATCHES.forEach(col => {
-        const sw = document.createElement('button');
-        sw.className = 'washi-color-swatch';
-        sw.setAttribute('data-color', col);
-        Object.assign(sw.style, {
-            width: '22px',
-            height: '22px',
-            borderRadius: '50%',
-            border: '2px solid rgba(0,0,0,0.06)',
-            background: col,
-            cursor: 'pointer',
-            padding: '0'
-        });
-
-        sw.addEventListener('click', () => {
-            currentWashiColor = col;
-            // update all pattern previews to reflect new color
-            patternsGroup.querySelectorAll('canvas').forEach(canvasEl => {
-                const patt = canvasEl.parentElement.getAttribute('data-pattern');
-                const pctx = canvasEl.getContext('2d');
-                pctx.clearRect(0,0,canvasEl.width,canvasEl.height);
-                pctx.fillStyle = '#fbfaf6';
-                pctx.fillRect(0,0,canvasEl.width,canvasEl.height);
-                drawPatternPreviewOnCtx(pctx, patt, currentWashiColor, canvasEl.width, canvasEl.height);
-            });
-            // highlight selected swatch
-            colorsGroup.querySelectorAll('.washi-color-swatch').forEach(b => b.style.boxShadow = 'none');
-            sw.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.04)';
-        });
-        colorsGroup.appendChild(sw);
-    });
-
-    // small close button
-    const closeBtn = document.createElement('button');
-    closeBtn.title = 'Close';
-    closeBtn.innerHTML = '&times;';
-    Object.assign(closeBtn.style, {
-        marginLeft: '6px',
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: '18px',
-        color: '#666'
-    });
-    closeBtn.addEventListener('click', () => {
-        hideFloatingWashiToolbar();
-        // switch tool back to select visually
-        document.querySelector('.tool-btn[data-tool="select"]')?.classList.add('active');
-        document.querySelectorAll('.tool-btn[data-tool]').forEach(b => { if (b.getAttribute('data-tool') === 'washi-tape') b.classList.remove('active'); });
-        currentTool = 'select';
-        if (corkboard) corkboard.setAttribute('data-tool', 'select');
-    });
-
-    // assemble
-    wrapper.appendChild(patternsGroup);
-    // divider
-    const divider = document.createElement('div');
-    Object.assign(divider.style, { width: '1px', height: '28px', background: 'rgba(0,0,0,0.04)', borderRadius: '2px' });
-    wrapper.appendChild(divider);
-    wrapper.appendChild(colorsGroup);
-    wrapper.appendChild(closeBtn);
-
-    // insert into corkboard for proper absolute positioning relative to corkboard
-    if (corkboard) corkboard.appendChild(wrapper);
-    floatingWashiToolbar = wrapper;
-    // initially hidden
-    wrapper.style.display = 'none';
-    return wrapper;
-}
-
-function drawPatternPreviewOnCtx(pctx, patternName, colorHex, w, h) {
-    // tiny preview drawing logic (not using createPattern to keep preview crisp)
-    pctx.fillStyle = '#fbfaf6';
-    pctx.fillRect(0,0,w,h);
-    pctx.save();
-    pctx.strokeStyle = colorHex;
-    pctx.fillStyle = colorHex;
-    if (patternName === 'diagonal') {
-        pctx.lineWidth = 2;
-        pctx.beginPath();
-        pctx.moveTo(0, h);
-        pctx.lineTo(w, 0);
-        pctx.stroke();
-    } else if (patternName === 'dots') {
-        const step = Math.max(6, Math.floor(w / 3));
-        for (let y = step/2; y < h; y += step) {
-            for (let x = step/2; x < w; x += step) {
-                pctx.beginPath();
-                pctx.arc(x, y, 1.6, 0, Math.PI*2);
-                pctx.fill();
+            ev.stopPropagation();
+            currentWashiPattern = btn.dataset.pattern;
+            // Update pattern preview canvases to show chosen (refresh)
+            updateWashiToolbarPreviews(currentWashiColor);
+            // If a washi is selected, update it immediately
+            if (selectedWashiIndex !== -1) {
+                const s = strokes[selectedWashiIndex];
+                s.pattern = currentWashiPattern;
+                redrawAllStrokes();
             }
+        });
+
+        patternsWrap.appendChild(btn);
+    });
+
+    // Color swatch + input
+    const colorWrap = document.createElement('div');
+    colorWrap.style.display = 'flex';
+    colorWrap.style.alignItems = 'center';
+    colorWrap.style.gap = '8px';
+
+    const colorSwatch = document.createElement('div');
+    colorSwatch.id = 'washi-color-swatch';
+    Object.assign(colorSwatch.style, {
+        width: '22px',
+        height: '22px',
+        borderRadius: '50%',
+        border: '2px solid rgba(255,255,255,0.9)',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+        background: currentWashiColor,
+        cursor: 'pointer'
+    });
+
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = currentWashiColor || '#ff6b6b';
+    colorInput.title = 'Pick washi color';
+    // visually hide input but keep it usable
+    Object.assign(colorInput.style, {
+        border: 'none',
+        padding: '0',
+        margin: '0',
+        width: '34px',
+        height: '28px',
+        background: 'transparent',
+        cursor: 'pointer'
+    });
+
+    colorInput.addEventListener('input', (ev) => {
+        const c = ev.target.value;
+        currentWashiColor = c;
+        colorSwatch.style.background = c;
+        // update pattern previews swatches to match
+        updateWashiToolbarPreviews(c);
+        // if selected washi present, update immediately (instant pop)
+        if (selectedWashiIndex !== -1) {
+            const s = strokes[selectedWashiIndex];
+            s.color = c;
+            redrawAllStrokes();
+        } else {
+            // for new washi, set currentStrokeColor
+            currentStrokeColor = c;
         }
-    } else if (patternName === 'grid') {
-        pctx.lineWidth = 1;
-        for (let i = 0; i < w; i += 5) {
-            pctx.beginPath();
-            pctx.moveTo(i, 0);
-            pctx.lineTo(i, h);
-            pctx.stroke();
+    });
+
+    // attach click behavior on swatch to open color input (small UX nicety)
+    colorSwatch.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        colorInput.click();
+    });
+
+    colorWrap.appendChild(colorSwatch);
+    colorWrap.appendChild(colorInput);
+
+    // Close / hide button
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.innerHTML = '&#10005;';
+    Object.assign(closeBtn.style, {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        fontSize: '14px',
+        color: '#777',
+        padding: '6px',
+        marginLeft: '6px'
+    });
+    closeBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        hideWashiFloatingToolbar();
+        deselectWashi();
+    });
+
+    el.appendChild(patternsWrap);
+    el.appendChild(colorWrap);
+    el.appendChild(closeBtn);
+
+    // ensure clicks inside toolbar do not propagate to corkboard (avoid deselection)
+    el.addEventListener('mousedown', (ev) => {
+        ev.stopPropagation();
+    });
+
+    // store
+    washiFloatingToolbarEl = el;
+    document.body.appendChild(el);
+
+    return el;
+}
+
+function updateWashiToolbarPreviews(colorHex) {
+    // redraw each small preview canvas to match color swatch hue
+    if (!washiFloatingToolbarEl) return;
+    const canvases = washiFloatingToolbarEl.querySelectorAll('canvas');
+    canvases.forEach((sw) => {
+        const ctx2 = sw.getContext('2d');
+        ctx2.clearRect(0,0,sw.width,sw.height);
+        ctx2.beginPath();
+        ctx2.arc(12, 12, 10, 0, Math.PI*2);
+        ctx2.fillStyle = colorHex;
+        ctx2.fill();
+        // re-draw a tiny pattern overlay for clarity (semi-transparent)
+        ctx2.globalAlpha = 0.15;
+        ctx2.strokeStyle = '#000';
+        ctx2.lineWidth = 1;
+        // detect pattern from parent button dataset
+        const btn = sw.closest('button');
+        const key = btn?.dataset?.pattern;
+        if (key === 'diagonal') {
+            ctx2.beginPath();
+            ctx2.moveTo(4, 18);
+            ctx2.lineTo(18, 4);
+            ctx2.stroke();
+        } else if (key === 'dots') {
+            ctx2.fillStyle = 'rgba(0,0,0,0.25)';
+            ctx2.beginPath(); ctx2.arc(8,8,1,0,Math.PI*2); ctx2.fill();
+            ctx2.beginPath(); ctx2.arc(16,16,1,0,Math.PI*2); ctx2.fill();
+        } else if (key === 'grid') {
+            ctx2.beginPath();
+            ctx2.moveTo(6, 4); ctx2.lineTo(6,20);
+            ctx2.moveTo(12,4); ctx2.lineTo(12,20);
+            ctx2.moveTo(4,6); ctx2.lineTo(20,6);
+            ctx2.moveTo(4,12); ctx2.lineTo(20,12);
+            ctx2.stroke();
         }
-        for (let j = 0; j < h; j += 5) {
-            pctx.beginPath();
-            pctx.moveTo(0, j);
-            pctx.lineTo(w, j);
-            pctx.stroke();
-        }
+        ctx2.globalAlpha = 1;
+    });
+
+    // update color swatch if present
+    const swatch = washiFloatingToolbarEl.querySelector('#washi-color-swatch');
+    if (swatch) swatch.style.background = colorHex;
+    // also sync hidden color input if present
+    const colorInput = washiFloatingToolbarEl.querySelector('input[type="color"]');
+    if (colorInput) colorInput.value = colorHex;
+}
+
+function showWashiFloatingToolbar(canvasX, canvasY, strokeIndex=null) {
+    const el = createWashiFloatingToolbar();
+
+    // anchor toolbar to corkboard coordinates: convert canvas coordinates to page coordinates
+    const boardRect = corkboard.getBoundingClientRect();
+    const pageX = boardRect.left + canvasX - corkboard.scrollLeft;
+    const pageY = boardRect.top + canvasY - corkboard.scrollTop;
+
+    // Update position (place it slightly above the start)
+    updateWashiFloatingToolbarPosition(canvasX, canvasY);
+
+    // ensure color preview matches currentWashiColor
+    updateWashiToolbarPreviews(currentWashiColor);
+
+    // show with animation
+    requestAnimationFrame(() => {
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+    });
+
+    // remember selected index to update selected stroke if user picks options
+    if (typeof strokeIndex === 'number') {
+        // deselect previous selection
+        if (selectedWashiIndex !== -1 && strokes[selectedWashiIndex]) strokes[selectedWashiIndex].selected = false;
+        selectedWashiIndex = strokeIndex;
+        if (strokes[selectedWashiIndex]) strokes[selectedWashiIndex].selected = true;
+        // ensure toolbar color matches the selected stroke color
+        currentWashiColor = strokes[selectedWashiIndex].color || currentWashiColor;
+        updateWashiToolbarPreviews(currentWashiColor);
     } else {
-        // plain: small colored rect
-        pctx.fillStyle = colorHex;
-        pctx.globalAlpha = 0.12;
-        pctx.fillRect(0, 0, w, h);
+        // if no stroke index provided, deselect previous selection
+        if (selectedWashiIndex !== -1 && strokes[selectedWashiIndex]) strokes[selectedWashiIndex].selected = false;
+        selectedWashiIndex = -1;
     }
-    pctx.restore();
+
+    // pattern buttons already bound when created; color input bound as well
+
+    // when user clicks a pattern or color, handlers update strokes directly (see creation handlers above)
+    redrawAllStrokes();
 }
 
-/**
- * Position and display the floating washi toolbar at corkboard coordinates (x,y).
- * The toolbar is positioned relative to corkboard; it will stay at the tape starting point.
- */
-function showFloatingWashiToolbarAt(x, y) {
-    const toolbar = createFloatingWashiToolbar();
-    // update previews to current color/pattern
-    toolbar.querySelectorAll('.washi-pattern-btn canvas').forEach(canvasEl => {
-        const patt = canvasEl.parentElement.getAttribute('data-pattern');
-        const pctx = canvasEl.getContext('2d');
-        pctx.clearRect(0,0,canvasEl.width,canvasEl.height);
-        pctx.fillStyle = '#fbfaf6';
-        pctx.fillRect(0,0,canvasEl.width,canvasEl.height);
-        drawPatternPreviewOnCtx(pctx, patt, currentWashiColor, canvasEl.width, canvasEl.height);
-    });
-    // highlight the active pattern button
-    toolbar.querySelectorAll('.washi-pattern-btn').forEach(b => {
-        b.style.outline = (b.getAttribute('data-pattern') === currentWashiPattern) ? '2px solid rgba(106,64,225,0.12)' : 'none';
-    });
-    // highlight the selected color
-    toolbar.querySelectorAll('.washi-color-swatch').forEach(sw => {
-        sw.style.boxShadow = (sw.getAttribute('data-color') === currentWashiColor) ? '0 0 0 3px rgba(0,0,0,0.04)' : 'none';
-    });
+function updateWashiFloatingToolbarPosition(canvasX, canvasY) {
+    if (!washiFloatingToolbarEl) return;
+    const boardRect = corkboard.getBoundingClientRect();
+    // convert canvas coords to page coords; corkboard may be scrolled
+    const pageX = boardRect.left + canvasX - corkboard.scrollLeft;
+    const pageY = boardRect.top + canvasY - corkboard.scrollTop;
 
-    // position (ensure within corkboard bounds)
-    const corkRect = corkboard.getBoundingClientRect();
-    const localLeft = x + corkRect.left - corkboard.scrollLeft;
-    const localTop = y + corkRect.top - corkboard.scrollTop;
+    // place toolbar centered horizontally at start point, slightly above
+    const elRect = washiFloatingToolbarEl.getBoundingClientRect();
+    let left = pageX - (elRect.width / 2);
+    let top = pageY - elRect.height - 14; // above start point
 
-    // Position toolbar using absolute coordinates relative to corkboard
-    const toolbarWidth = 250; // approx - wrapper width may vary; we center using translate
-    toolbar.style.left = (x) + 'px';
-    toolbar.style.top = (y) + 'px';
-    toolbar.style.display = 'flex';
+    // ensure toolbar remains within viewport horizontally
+    left = Math.max(8, left);
+    left = Math.min(window.innerWidth - elRect.width - 8, left);
+    top = Math.max(8, top);
+
+    washiFloatingToolbarEl.style.left = left + 'px';
+    washiFloatingToolbarEl.style.top = top + 'px';
 }
 
-/**
- * Hide & remove the floating washi toolbar
- */
-function hideFloatingWashiToolbar() {
-    if (!floatingWashiToolbar) return;
-    floatingWashiToolbar.style.display = 'none';
+function hideWashiFloatingToolbar() {
+    if (!washiFloatingToolbarEl) return;
+    washiFloatingToolbarEl.style.opacity = '0';
+    washiFloatingToolbarEl.style.transform = 'translateY(-6px)';
+    // after transition, remove optional selection
+    setTimeout(() => {
+        if (washiFloatingToolbarEl) {
+            // do not remove from DOM; keep it for reuse (cheaper)
+            washiFloatingToolbarEl.style.left = '-9999px';
+            washiFloatingToolbarEl.style.top = '-9999px';
+        }
+    }, 200);
 }
 
 // --- Sticky Wall Initialization ---
@@ -1644,7 +1809,6 @@ function initializeStickyWall() {
     if (!canvas || !corkboard) return;
 
     function fitCanvasToBoard() {
-        // size the canvas to corkboard scrollable area
         canvas.width = corkboard.scrollWidth;
         canvas.height = corkboard.scrollHeight;
         redrawAllStrokes();
@@ -1793,6 +1957,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Global canvas + corkboard interactions
     document.addEventListener('mousedown', startDragOrResize);
     document.addEventListener('mousemove', dragOrResize);
     document.addEventListener('mouseup', endDragOrResize);
@@ -1842,8 +2007,28 @@ document.addEventListener('DOMContentLoaded', () => {
         redrawAllStrokes();
     });
 
-    // initial creation of the floating washi toolbar (hidden)
-    createFloatingWashiToolbar();
+    // Washi pattern controls (if present in DOM) -- keep them synced with floating toolbar
+    washiPatternButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            washiPatternButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentWashiPattern = btn.dataset.pattern;
+        });
+    });
+
+    // When clicking outside anywhere, deselect washi and hide toolbar
+    document.addEventListener('click', (ev) => {
+        // if click was on toolbar or a btn inside, ignore
+        if (ev.target.closest && ev.target.closest('#washi-floating-toolbar')) return;
+        if (ev.target.closest && ev.target.closest('.tool-btn[data-tool="washi-tape"]')) return;
+        // if currently drawing washi (mousedown started) don't auto deselect here
+        if (isWashiDrawing) return;
+        // else hide/deselect
+        // but only auto-deselect if not currently dragging washi
+        if (!washiDragging) {
+            deselectWashi();
+        }
+    });
 
     renderAllViews();
     switchView('matrix');
