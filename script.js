@@ -122,9 +122,10 @@ let currentStrokeColor = 'black';
 let currentStrokeWidth = 5;
 let currentOpacity = 1;
 let strokes = []; // Array to store all drawn strokes
+let activeDraggableStroke = null;
 let isMoving = false;
-let lastX, lastY;
-let activeDraggable = null;
+let lastX = 0;
+let lastY = 0;
 
 // NEW STATE FOR STROKE DRAGGING
 let activeDraggableStroke = null; 
