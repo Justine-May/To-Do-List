@@ -122,10 +122,9 @@ let currentStrokeColor = 'black';
 let currentStrokeWidth = 5;
 let currentOpacity = 1;
 let strokes = []; // Array to store all drawn strokes
-let activeDraggableStroke = null;
 let isMoving = false;
-let lastX = 0;
-let lastY = 0;
+let lastX, lastY;
+let activeDraggable = null;
 
 // NEW STATE FOR STROKE DRAGGING
 let activeDraggableStroke = null; 
@@ -728,29 +727,29 @@ function startDragOrResize(e) {
     }
     
     // --- NEW: STROKE DRAGGING CHECK ---
-if (currentView === 'sticky-wall' && currentTool === 'select' && e.target === canvas) {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    if (currentView === 'sticky-wall' && currentTool === 'select' && e.target === canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
-    activeDraggableStroke = getStrokeUnderCursor(x, y);
+        activeDraggableStroke = getStrokeUnderCursor(x, y);
 
-    if (activeDraggableStroke) {
-        isMoving = true;
-        lastX = e.clientX;
-        lastY = e.clientY;
-        e.preventDefault();
-        
-        // Bring the stroke to the front by moving it to the end of the array
-        const index = strokes.indexOf(activeDraggableStroke);
-        if (index > -1) {
-            strokes.splice(index, 1);
-            strokes.push(activeDraggableStroke);
+        if (activeDraggableStroke) {
+            isMoving = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            e.preventDefault();
+            
+            // Bring the stroke to the front by moving it to the end of the array
+            const index = strokes.indexOf(activeDraggableStroke);
+            if (index > -1) {
+                strokes.splice(index, 1);
+                strokes.push(activeDraggableStroke);
+            }
+            redrawAllStrokes();
+            return;
         }
-        redrawAllStrokes();
-        return;
     }
-}
 
     // Dragging check (Sticky Note)
     if (clickedNote && currentTool === 'select' && !isDrawingOnNote) {
@@ -898,38 +897,38 @@ function dragOrResize(e) {
         return;
     }
 
-// --- NEW: STROKE DRAGGING LOGIC ---
-if (isMoving && activeDraggableStroke) {
-    e.preventDefault();
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
+    // --- NEW: STROKE DRAGGING LOGIC ---
+    if (isMoving && activeDraggableStroke) {
+        e.preventDefault();
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
 
-    // Apply movement to points
-    activeDraggableStroke.points.forEach(point => {
-        point.x += dx;
-        point.y += dy;
-    });
+        // Apply movement to points
+        activeDraggableStroke.points.forEach(point => {
+            point.x += dx;
+            point.y += dy;
+        });
 
-    // Washi tape needs its start/end updated too
-    if (activeDraggableStroke.tool === 'washi-tape') {
-        activeDraggableStroke.start.x += dx;
-        activeDraggableStroke.start.y += dy;
-        activeDraggableStroke.end.x += dx;
-        activeDraggableStroke.end.y += dy;
+        // Washi tape needs its start/end updated too
+        if (activeDraggableStroke.tool === 'washi-tape') {
+            activeDraggableStroke.start.x += dx;
+            activeDraggableStroke.start.y += dy;
+            activeDraggableStroke.end.x += dx;
+            activeDraggableStroke.end.y += dy;
+        }
+
+        // Update bounds
+        activeDraggableStroke.bounds.minX += dx;
+        activeDraggableStroke.bounds.minY += dy;
+        activeDraggableStroke.bounds.maxX += dx;
+        activeDraggableStroke.bounds.maxY += dy;
+
+        redrawAllStrokes();
+
+        lastX = e.clientX;
+        lastY = e.clientY;
+        return;
     }
-
-    // Update bounds
-    activeDraggableStroke.bounds.minX += dx;
-    activeDraggableStroke.bounds.minY += dy;
-    activeDraggableStroke.bounds.maxX += dx;
-    activeDraggableStroke.bounds.maxY += dy;
-
-    redrawAllStrokes();
-
-    lastX = e.clientX;
-    lastY = e.clientY;
-    return;
-}
 
     // Dragging Logic (Sticky Note)
     if (isMoving && activeDraggable) {
@@ -1049,10 +1048,11 @@ function endDragOrResize(e) {
         }
         // --- NEW: STROKE DRAGGING END ---
         else if (activeDraggableStroke) {
-    isMoving = false;
-    saveStrokes();
-    activeDraggableStroke = null;
-}
+            isMoving = false;
+            saveStrokes();
+            activeDraggableStroke = null;
+        }
+    }
 
     // Main Canvas Drawing End (continuous tools)
     if (drawing) {
