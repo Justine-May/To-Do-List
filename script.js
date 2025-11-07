@@ -669,9 +669,10 @@ function getStrokeUnderCursor(x, y) {
         // Skip strokes without bounds (shouldn't happen with updated drawing, but as a safeguard)
         if (!stroke.bounds) continue; 
 
-        // CRITICAL CHANGE: Use a generous buffer for easy clicking, minimum 15 pixels.
-        // This makes the bounding box feel like a click target.
-        const buffer = Math.max(15, stroke.width); 
+        // Add a buffer around the stroke's drawn area (easier clicking)
+        // Use washi width (e.g. 20) or marker/highlighter width, plus a safety margin (e.g. 5px)
+        const baseWidth = stroke.tool === 'washi-tape' ? 20 : stroke.width;
+        const buffer = Math.max(5, baseWidth / 2); 
 
         // Check if cursor (x, y) is within the stroke's bounds + buffer
         if (x >= stroke.bounds.minX - buffer && x <= stroke.bounds.maxX + buffer &&
@@ -726,29 +727,29 @@ function startDragOrResize(e) {
     }
     
     // --- NEW: STROKE DRAGGING CHECK ---
-    if (currentView === 'sticky-wall' && currentTool === 'select' && e.target === canvas) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+if (currentView === 'sticky-wall' && currentTool === 'select' && e.target === canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-        activeDraggableStroke = getStrokeUnderCursor(x, y);
+    activeDraggableStroke = getStrokeUnderCursor(x, y);
 
-        if (activeDraggableStroke) {
-            isMoving = true;
-            lastX = e.clientX;
-            lastY = e.clientY;
-            e.preventDefault();
-            
-            // Bring the stroke to the front by moving it to the end of the array
-            const index = strokes.indexOf(activeDraggableStroke);
-            if (index > -1) {
-                strokes.splice(index, 1);
-                strokes.push(activeDraggableStroke);
-            }
-            redrawAllStrokes();
-            return;
+    if (activeDraggableStroke) {
+        isMoving = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        e.preventDefault();
+        
+        // Bring the stroke to the front by moving it to the end of the array
+        const index = strokes.indexOf(activeDraggableStroke);
+        if (index > -1) {
+            strokes.splice(index, 1);
+            strokes.push(activeDraggableStroke);
         }
+        redrawAllStrokes();
+        return;
     }
+}
 
     // Dragging check (Sticky Note)
     if (clickedNote && currentTool === 'select' && !isDrawingOnNote) {
@@ -896,38 +897,38 @@ function dragOrResize(e) {
         return;
     }
 
-    // --- NEW: STROKE DRAGGING LOGIC ---
-    if (isMoving && activeDraggableStroke) {
-        e.preventDefault();
-        const dx = e.clientX - lastX;
-        const dy = e.clientY - lastY;
+// --- NEW: STROKE DRAGGING LOGIC ---
+if (isMoving && activeDraggableStroke) {
+    e.preventDefault();
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
 
-        // Move all points (marker/highlight/washi)
-        activeDraggableStroke.points.forEach(point => {
-            point.x += dx;
-            point.y += dy;
-        });
+    // Apply movement to points
+    activeDraggableStroke.points.forEach(point => {
+        point.x += dx;
+        point.y += dy;
+    });
 
-        // Washi tape needs its start/end updated too
-        if (activeDraggableStroke.tool === 'washi-tape') {
-            activeDraggableStroke.start.x += dx;
-            activeDraggableStroke.start.y += dy;
-            activeDraggableStroke.end.x += dx;
-            activeDraggableStroke.end.y += dy;
-        }
-
-        // Update bounds
-        activeDraggableStroke.bounds.minX += dx;
-        activeDraggableStroke.bounds.minY += dy;
-        activeDraggableStroke.bounds.maxX += dx;
-        activeDraggableStroke.bounds.maxY += dy;
-
-        redrawAllStrokes();
-
-        lastX = e.clientX;
-        lastY = e.clientY;
-        return;
+    // Washi tape needs its start/end updated too
+    if (activeDraggableStroke.tool === 'washi-tape') {
+        activeDraggableStroke.start.x += dx;
+        activeDraggableStroke.start.y += dy;
+        activeDraggableStroke.end.x += dx;
+        activeDraggableStroke.end.y += dy;
     }
+
+    // Update bounds
+    activeDraggableStroke.bounds.minX += dx;
+    activeDraggableStroke.bounds.minY += dy;
+    activeDraggableStroke.bounds.maxX += dx;
+    activeDraggableStroke.bounds.maxY += dy;
+
+    redrawAllStrokes();
+
+    lastX = e.clientX;
+    lastY = e.clientY;
+    return;
+}
 
     // Dragging Logic (Sticky Note)
     if (isMoving && activeDraggable) {
@@ -1047,11 +1048,10 @@ function endDragOrResize(e) {
         }
         // --- NEW: STROKE DRAGGING END ---
         else if (activeDraggableStroke) {
-            isMoving = false;
-            saveStrokes();
-            activeDraggableStroke = null;
-        }
-    }
+    isMoving = false;
+    saveStrokes();
+    activeDraggableStroke = null;
+}
 
     // Main Canvas Drawing End (continuous tools)
     if (drawing) {
@@ -1868,66 +1868,6 @@ function setupMatrixDragAndDrop() {
         quadrantEl.addEventListener('dragenter', handleDragEnter);
         quadrantEl.addEventListener('dragleave', handleDragLeave);
         quadrantEl.addEventListener('drop', handleDrop);
-    });
-}
-
-
-function makeDraggable(element) {
-    let dragTimeout;
-    element.addEventListener('mousedown', (e) => {
-        // Prevent drag on handles or note drawing canvas
-        if (e.target.classList.contains('resize-handle') || e.target.classList.contains('note-drawing-canvas')) {
-            return;
-        }
-        
-        // Only allow dragging in 'select' mode or if the element is not a drawing stroke/tape
-        const isDrawingStroke = element.classList.contains('drawing-stroke') || element.classList.contains('washi-tape-stroke');
-        if (currentTool !== 'select' && isDrawingStroke) {
-            return;
-        }
-
-        clearTimeout(dragTimeout);
-        dragTimeout = setTimeout(() => {
-            isDragging = true;
-            draggedElement = element;
-            offsetX = e.clientX - draggedElement.offsetLeft;
-            offsetY = e.clientY - draggedElement.offsetTop;
-            draggedElement.style.zIndex = 100; 
-            e.stopPropagation(); // Stop event bubbling to main canvas draw
-        }, 150);
-
-        const cancelDrag = (upEvent) => {
-            if (!isDragging) {
-                clearTimeout(dragTimeout);
-            }
-            document.removeEventListener('mouseup', cancelDrag);
-        };
-        document.addEventListener('mouseup', cancelDrag);
-    });
-}
-
-function makeResizable(element) {
-    element.querySelectorAll('.resize-handle').forEach(handle => {
-        handle.addEventListener('mousedown', (e) => {
-            if (activeNote === element && isDrawingOnNote) {
-                toggleNoteDrawMode(activeNote);
-            }
-            
-            isResizing = true;
-            isDragging = false;
-            resizingElement = element;
-            resizeDirection = e.target.dataset.direction;
-            startX = e.clientX;
-            startY = e.clientY;
-            startWidth = parseInt(document.defaultView.getComputedStyle(element).width, 10);
-            startHeight = parseInt(document.defaultView.getComputedStyle(element).height, 10);
-            startLeft = parseInt(document.defaultView.getComputedStyle(element).left, 10);
-            startTop = parseInt(document.defaultView.getComputedStyle(element).top, 10);
-            
-            resizingElement.style.zIndex = 100;
-            e.stopPropagation();
-            e.preventDefault();
-        });
     });
 }
 
