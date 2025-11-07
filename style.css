@@ -1053,3 +1053,72 @@ textarea#task-description {
 .pattern-plain {
     /* Base background color already set on .washi-pattern */
 }
+
+/* Washi Tape Toolbar */
+#washi-toolbar {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  gap: 10px;
+  padding: 8px 15px;
+  z-index: 40;
+}
+
+.pattern-option {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  background-color: #fafafa;
+  font-size: 0.9em;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.pattern-option:hover {
+  background-color: #e8e0ff;
+  color: #6a40e1;
+}
+
+.pattern-option.active {
+  background-color: #6a40e1;
+  color: white;
+  border-color: #6a40e1;
+}
+
+/* Allow Washi Tape to be drawn */
+#corkboard[data-tool="washi-tape"] #annotation-canvas {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+#washi-toolbar {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 6px 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+#washi-toolbar.hidden { display: none; }
+.pattern-option {
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #f0f0f0;
+}
+.pattern-option.active {
+  background: #d0e0ff;
+}

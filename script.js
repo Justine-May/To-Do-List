@@ -487,6 +487,7 @@ function renderStickyWallNotes() {
         }
     });
 }
+
 function renderStickyWallNotes() {
     if (!corkboard) return;
 
@@ -880,6 +881,7 @@ function handleCanvasClick(e) {
     }
 }
 // --- Floating toolbar helpers (unchanged) ---
+
 // --- Floating toolbar helpers (unchanged) ---
 function updateTextStyleButtonStates() {
     if (!activeNote || isDrawingOnNote) return;
@@ -1061,9 +1063,10 @@ function getStrokeUnderCursor(x, y) {
         // Skip strokes without bounds (shouldn't happen with updated drawing, but as a safeguard)
         if (!stroke.bounds) continue; 
 
-        // CRITICAL CHANGE: Use a generous buffer for easy clicking, minimum 15 pixels.
-        // This makes the bounding box feel like a click target.
-        const buffer = Math.max(15, stroke.width); 
+        // Add a buffer around the stroke's drawn area (easier clicking)
+        // Use washi width (e.g. 20) or marker/highlighter width, plus a safety margin (e.g. 5px)
+        const baseWidth = stroke.tool === 'washi-tape' ? 20 : stroke.width;
+        const buffer = Math.max(5, baseWidth / 2); 
 
         // Check if cursor (x, y) is within the stroke's bounds + buffer
         if (x >= stroke.bounds.minX - buffer && x <= stroke.bounds.maxX + buffer &&
@@ -1294,7 +1297,7 @@ function dragOrResize(e) {
         const dx = e.clientX - lastX;
         const dy = e.clientY - lastY;
 
-        // Move all points (marker/highlight/washi)
+        // Apply movement to points
         activeDraggableStroke.points.forEach(point => {
             point.x += dx;
             point.y += dy;
