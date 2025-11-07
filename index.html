@@ -41,7 +41,7 @@
             </nav>
         </aside>
 
-        <main class="relative">
+        <main class="relative main-content-wall">
             <div id="matrix-container" class="view-container active">
                 <h1 class="matrix-title">Eisenhower Matrix</h1>
                 <div class="matrix-grid relative">
@@ -84,6 +84,9 @@
             
             <div id="sticky-wall-container" class="view-container">
                 <div id="corkboard" data-tool="select">
+                    
+                    <div id="drawing-layer"></div>
+                    
                     <canvas id="annotation-canvas"></canvas>
                 </div>
                 
@@ -95,7 +98,7 @@
                         <button class="tool-btn" data-tool="marker" title="Marker">
                             <i class="ri-edit-line"></i> Marker
                         </button>
-                        <button class="tool-btn" data-tool="highlight" title="Highlighter">
+                        <button class="tool-btn" data-tool="highlighter" title="Highlighter">
                             <i class="ri-mark-pen-line"></i> Highlight
                         </button>
                         <button class="tool-btn" data-tool="eraser" title="Eraser">
@@ -104,7 +107,7 @@
                         <button class="tool-btn" data-tool="add-note" title="Add Sticky Note">
                             <i class="ri-sticky-note-line"></i> Note
                         </button>
-                        <button class="tool-btn" data-tool="washi-tape" title="Washi Tape">
+                        <button class="tool-btn" data-tool="washi" title="Washi Tape">
                             <i class="ri-coupon-4-line"></i> Tape
                         </button>
                     </div>
@@ -125,150 +128,150 @@
                     </div>
                 </div>
 
-                            <div id="note-floating-toolbar" class="hidden">
-                <div class="note-toolbar-segment note-select-group">
-                    <button id="note-color-btn" class="note-tool-btn note-select-btn" title="Note Color" tabindex="-1">
-                        <span id="current-note-color"><i class="note-color-indicator ri-square-fill"></i></span>
-                        <i class="ri-arrow-down-s-line ml-1"></i>
-                    </button>
-                    <div id="note-color-menu" class="note-dropdown-menu">
-                        <button class="note-color-option" data-color="yellow" title="Yellow">
-                            <i class="note-color-indicator ri-square-fill"></i>
+                <div id="note-floating-toolbar" class="hidden">
+                    <div class="note-toolbar-segment note-select-group">
+                        <button id="note-color-btn" class="note-tool-btn note-select-btn" title="Note Color" tabindex="-1">
+                            <span id="current-note-color"><i class="note-color-indicator ri-square-fill"></i></span>
+                            <i class="ri-arrow-down-s-line ml-1"></i>
                         </button>
-                        <button class="note-color-option" data-color="blue" title="Blue">
-                            <i class="note-color-indicator ri-square-fill"></i>
+                        <div id="note-color-menu" class="note-dropdown-menu">
+                            <button class="note-color-option" data-color="yellow" title="Yellow">
+                                <i class="note-color-indicator ri-square-fill"></i>
+                            </button>
+                            <button class="note-color-option" data-color="blue" title="Blue">
+                                <i class="note-color-indicator ri-square-fill"></i>
+                            </button>
+                            <button class="note-color-option" data-color="green" title="Green">
+                                <i class="note-color-indicator ri-square-fill"></i>
+                            </button>
+                            <button class="note-color-option" data-color="pink" title="Pink">
+                                <i class="note-color-indicator ri-square-fill"></i>
+                            </button>
+                            <button class="note-color-option" data-color="purple" title="Purple">
+                                <i class="note-color-indicator ri-square-fill"></i>
+                            </button>
+                            <button class="note-color-option" data-color="white" title="White">
+                                <i class="note-color-indicator ri-square-fill"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="note-toolbar-segment note-select-group">
+                        <button id="note-font-btn" class="note-tool-btn note-select-btn" title="Font Family" tabindex="-1">
+                            <span id="current-font-display">Inter</span>
+                            <i class="ri-arrow-down-s-line ml-1"></i>
                         </button>
-                        <button class="note-color-option" data-color="green" title="Green">
-                            <i class="note-color-indicator ri-square-fill"></i>
+                        <div id="note-font-menu" class="note-dropdown-menu">
+                            <button class="note-font-option" data-font="inter">Inter (Sans-serif)</button>
+                            <button class="note-font-option" data-font="roboto">Roboto (Sans-serif)</button>
+                            <button class="note-font-option" data-font="marker">Permanent Marker (Handwritten)</button>
+                        </div>
+                    </div>
+
+                    <div class="note-toolbar-segment note-select-group">
+                        <button id="note-size-btn" class="note-tool-btn note-select-btn" title="Text Size" tabindex="-1">
+                            <i class="ri-text"></i>
+                            <span id="current-size-display">Medium</span>
+                            <i class="ri-arrow-down-s-line ml-1"></i>
                         </button>
-                        <button class="note-color-option" data-color="pink" title="Pink">
-                            <i class="note-color-indicator ri-square-fill"></i>
+                        <div id="note-size-menu" class="note-dropdown-menu">
+                            <button class="note-size-option" data-size="small">Small</button>
+                            <button class="note-size-option active-size" data-size="medium">Medium</button>
+                            <button class="note-size-option" data-size="large">Large</button>
+                        </div>
+                    </div>
+                    
+                    <div class="note-toolbar-segment note-formatting-buttons">
+                        <button class="note-tool-btn" data-text-style="bold" title="Bold" tabindex="-1">
+                            <i class="ri-bold"></i>
                         </button>
-                        <button class="note-color-option" data-color="purple" title="Purple">
-                            <i class="note-color-indicator ri-square-fill"></i>
+                        <button class="note-tool-btn" data-text-style="strike" title="Strikethrough" tabindex="-1">
+                            <i class="ri-strikethrough"></i>
                         </button>
-                        <button class="note-color-option" data-color="white" title="White">
-                            <i class="note-color-indicator ri-square-fill"></i>
+                        <button class="note-tool-btn" data-text-style="unordered-list" title="Bullet/Checklist (Unordered List)" tabindex="-1">
+                            <i class="ri-list-unordered"></i>
+                        </button>
+                        <button class="note-tool-btn" data-text-style="ordered-list" title="Numbered List" tabindex="-1">
+                            <i class="ri-list-ordered"></i>
+                        </button>
+                        <button class="note-tool-btn" id="note-author-btn" title="Insert Author/Username" tabindex="-1">
+                            <i class="ri-at-line"></i>
                         </button>
                     </div>
-                </div>
 
-                <div class="note-toolbar-segment note-select-group">
-                    <button id="note-font-btn" class="note-tool-btn note-select-btn" title="Font Family" tabindex="-1">
-                        <span id="current-font-display">Inter</span>
-                        <i class="ri-arrow-down-s-line ml-1"></i>
-                    </button>
-                    <div id="note-font-menu" class="note-dropdown-menu">
-                        <button class="note-font-option" data-font="inter">Inter (Sans-serif)</button>
-                        <button class="note-font-option" data-font="roboto">Roboto (Sans-serif)</button>
-                        <button class="note-font-option" data-font="marker">Permanent Marker (Handwritten)</button>
+                    <div class="note-toolbar-segment note-right-edge note-action-buttons">
+                        <button class="note-tool-btn note-draw-toggle" title="Draw on Note" tabindex="-1">
+                            <i class="ri-pencil-line"></i>
+                        </button>
+                        <button class="note-tool-btn note-delete-btn" title="Delete Note" tabindex="-1">
+                            <i class="ri-delete-bin-line"></i>
+                        </button>
                     </div>
-                </div>
 
-                <div class="note-toolbar-segment note-select-group">
-                    <button id="note-size-btn" class="note-tool-btn note-select-btn" title="Text Size" tabindex="-1">
-                        <i class="ri-text"></i>
-                        <span id="current-size-display">Medium</span>
-                        <i class="ri-arrow-down-s-line ml-1"></i>
-                    </button>
-                    <div id="note-size-menu" class="note-dropdown-menu">
-                        <button class="note-size-option" data-size="small">Small</button>
-                        <button class="note-size-option active-size" data-size="medium">Medium</button>
-                        <button class="note-size-option" data-size="large">Large</button>
+                    <div id="washi-toolbar" class="hidden">
+                        <button class="pattern-option active" data-pattern="diagonal">Diagonal</button>
+                        <button class="pattern-option" data-pattern="dots">Dots</button>
+                        <button class="pattern-option" data-pattern="grid">Grid</button>
+                        <button class="pattern-option" data-pattern="plain">Plain</button>
                     </div>
-                </div>
-                
-                <div class="note-toolbar-segment note-formatting-buttons">
-                    <button class="note-tool-btn" data-text-style="bold" title="Bold" tabindex="-1">
-                        <i class="ri-bold"></i>
-                    </button>
-                    <button class="note-tool-btn" data-text-style="strike" title="Strikethrough" tabindex="-1">
-                        <i class="ri-strikethrough"></i>
-                    </button>
-                    <button class="note-tool-btn" data-text-style="unordered-list" title="Bullet/Checklist (Unordered List)" tabindex="-1">
-                        <i class="ri-list-unordered"></i>
-                    </button>
-                    <button class="note-tool-btn" data-text-style="ordered-list" title="Numbered List" tabindex="-1">
-                        <i class="ri-list-ordered"></i>
-                    </button>
-                    <button class="note-tool-btn" id="note-author-btn" title="Insert Author/Username" tabindex="-1">
-                        <i class="ri-at-line"></i>
-                    </button>
-                </div>
 
-                <div class="note-toolbar-segment note-right-edge note-action-buttons">
-                    <button class="note-tool-btn note-draw-toggle" title="Draw on Note" tabindex="-1">
-                        <i class="ri-pencil-line"></i>
-                    </button>
-                    <button class="note-tool-btn note-delete-btn" title="Delete Note" tabindex="-1">
-                        <i class="ri-delete-bin-line"></i>
-                    </button>
                 </div>
-
-                <div id="washi-toolbar" class="hidden">
-                  <button class="pattern-option active" data-pattern="diagonal">Diagonal</button>
-                  <button class="pattern-option" data-pattern="dots">Dots</button>
-                  <button class="pattern-option" data-pattern="grid">Grid</button>
-                  <button class="pattern-option" data-pattern="plain">Plain</button>
-                </div>
-
-            </div>
             </div>
             
             <div id="task-details-modal" class="modal-overlay">
-    <div class="modal-content">
-        <button class="close-button" onclick="closeModal()">&times;</button>
-        <h2 id="modal-title">Task Details</h2>
-        <form id="task-form">
-            <input type="hidden" id="current-task-id" value="">
-            
-            <div class="form-group">
-                <label for="task-title"><i class="fas fa-heading"></i> Title</label>
-                <input type="text" id="task-title" required placeholder="Enter task title">
-            </div>
+                <div class="modal-content">
+                    <button class="close-button" onclick="closeModal()">&times;</button>
+                    <h2 id="modal-title">Task Details</h2>
+                    <form id="task-form">
+                        <input type="hidden" id="current-task-id" value="">
+                        
+                        <div class="form-group">
+                            <label for="task-title"><i class="fas fa-heading"></i> Title</label>
+                            <input type="text" id="task-title" required placeholder="Enter task title">
+                        </div>
 
-            <div class="form-row">
-                <div class="form-group half-width">
-                    <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
-                    <input type="date" id="task-due-date">
-                </div>
-                <div class="form-group half-width">
-                    <label for="task-priority"><i class="fas fa-star"></i> Quadrant</label>
-                    <select id="task-priority" required>
-                        <option value="do">Do Now (Urgent & Important)</option>
-                        <option value="schedule">Schedule (Important, Not Urgent)</option>
-                        <option value="delegate">Delegate (Urgent, Not Important)</option>
-                        <option value="eliminate">Eliminate (Not Urgent & Not Important)</option>
-                    </select>
-                </div>
-            </div>
+                        <div class="form-row">
+                            <div class="form-group half-width">
+                                <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
+                                <input type="date" id="task-due-date">
+                            </div>
+                            <div class="form-group half-width">
+                                <label for="task-priority"><i class="fas fa-star"></i> Quadrant</label>
+                                <select id="task-priority" required>
+                                    <option value="do">Do Now (Urgent & Important)</option>
+                                    <option value="schedule">Schedule (Important, Not Urgent)</option>
+                                    <option value="delegate">Delegate (Urgent, Not Important)</option>
+                                    <option value="eliminate">Eliminate (Not Urgent & Not Important)</option>
+                                </select>
+                            </div>
+                        </div>
 
-            <div class="form-group">
-                <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
-                <textarea id="task-description" placeholder="Add details or notes..."></textarea>
-            </div>
-            
-            <div class="form-group" id="subtasks-container">
-                <label><i class="fas fa-list-ul"></i> Subtasks</label>
-                <ul class="subtask-list" id="subtask-list">
-                    </ul>
-                <div class="subtask-input-group">
-                    <input type="text" id="new-subtask-text" placeholder="Add a new subtask">
-                    <button type="button" class="btn add-subtask-btn"><i class="fas fa-plus"></i></button>
+                        <div class="form-group">
+                            <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
+                            <textarea id="task-description" placeholder="Add details or notes..."></textarea>
+                        </div>
+                        
+                        <div class="form-group" id="subtasks-container">
+                            <label><i class="fas fa-list-ul"></i> Subtasks</label>
+                            <ul class="subtask-list" id="subtask-list">
+                                </ul>
+                            <div class="subtask-input-group">
+                                <input type="text" id="new-subtask-text" placeholder="Add a new subtask">
+                                <button type="button" class="btn add-subtask-btn"><i class="fas fa-plus"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn delete-btn hidden" id="delete-task-btn">
+                                <i class="fas fa-trash-alt"></i> Delete
+                            </button>
+                            <button type="submit" class="btn save-btn" id="save-task-btn">
+                                <i class="fas fa-save"></i> Save Task
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-
-            <div class="modal-actions">
-                <button type="button" class="btn delete-btn hidden" id="delete-task-btn">
-                    <i class="fas fa-trash-alt"></i> Delete
-                </button>
-                <button type="submit" class="btn save-btn" id="save-task-btn">
-                    <i class="fas fa-save"></i> Save Task
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 
             </main>
     </div>
