@@ -1871,6 +1871,66 @@ function setupMatrixDragAndDrop() {
     });
 }
 
+
+function makeDraggable(element) {
+    let dragTimeout;
+    element.addEventListener('mousedown', (e) => {
+        // Prevent drag on handles or note drawing canvas
+        if (e.target.classList.contains('resize-handle') || e.target.classList.contains('note-drawing-canvas')) {
+            return;
+        }
+        
+        // Only allow dragging in 'select' mode or if the element is not a drawing stroke/tape
+        const isDrawingStroke = element.classList.contains('drawing-stroke') || element.classList.contains('washi-tape-stroke');
+        if (currentTool !== 'select' && isDrawingStroke) {
+            return;
+        }
+
+        clearTimeout(dragTimeout);
+        dragTimeout = setTimeout(() => {
+            isDragging = true;
+            draggedElement = element;
+            offsetX = e.clientX - draggedElement.offsetLeft;
+            offsetY = e.clientY - draggedElement.offsetTop;
+            draggedElement.style.zIndex = 100; 
+            e.stopPropagation(); // Stop event bubbling to main canvas draw
+        }, 150);
+
+        const cancelDrag = (upEvent) => {
+            if (!isDragging) {
+                clearTimeout(dragTimeout);
+            }
+            document.removeEventListener('mouseup', cancelDrag);
+        };
+        document.addEventListener('mouseup', cancelDrag);
+    });
+}
+
+function makeResizable(element) {
+    element.querySelectorAll('.resize-handle').forEach(handle => {
+        handle.addEventListener('mousedown', (e) => {
+            if (activeNote === element && isDrawingOnNote) {
+                toggleNoteDrawMode(activeNote);
+            }
+            
+            isResizing = true;
+            isDragging = false;
+            resizingElement = element;
+            resizeDirection = e.target.dataset.direction;
+            startX = e.clientX;
+            startY = e.clientY;
+            startWidth = parseInt(document.defaultView.getComputedStyle(element).width, 10);
+            startHeight = parseInt(document.defaultView.getComputedStyle(element).height, 10);
+            startLeft = parseInt(document.defaultView.getComputedStyle(element).left, 10);
+            startTop = parseInt(document.defaultView.getComputedStyle(element).top, 10);
+            
+            resizingElement.style.zIndex = 100;
+            e.stopPropagation();
+            e.preventDefault();
+        });
+    });
+}
+
 // --- DOMContentLoaded: Wire up events and load state ---
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.quadrant-add-btn').forEach(button => {
