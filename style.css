@@ -533,7 +533,9 @@ textarea#task-description {
 #corkboard[data-tool="washi"] { /* Added washi tool cursor */
     cursor: crosshair;
 }
-
+#corkboard[data-tool="select"] #annotation-canvas {
+    pointer-events: auto;
+}
 /* * NEW: Layer for Draggable SVG Drawings (Strokes and Washi Tape) 
 * This sits above the canvas but below the notes. 
 */
@@ -1122,3 +1124,4 @@ textarea#task-description {
 .pattern-option.active {
   background: #d0e0ff;
 }
+

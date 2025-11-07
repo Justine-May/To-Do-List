@@ -126,9 +126,9 @@ let isMoving = false;
 let lastX, lastY;
 let activeDraggable = null;
 
-// NEW STATE FOR STROKE DRAGGING
-let activeDraggableStroke = null; 
-let currentStroke = null; // New global state to track the stroke being drawn
+// --- MODIFIED: NEW STATE FOR STROKE DRAGGING ---
+let activeDraggableStroke = null; // The stroke object being dragged
+let currentStroke = null; // The stroke currently being drawn
 
 // Washi-specific state
 let isWashiDrawing = false;
@@ -148,6 +148,7 @@ function saveStrokes() {
     localStorage.setItem('strokes', JSON.stringify(strokes));
 }
 
+// --- MODIFIED: Ensure old strokes get bounds for dragging ---
 function loadStrokes() {
     const savedStrokes = localStorage.getItem('strokes');
     if (savedStrokes) {
@@ -651,7 +652,7 @@ function endNoteDraw() {
     }
 }
 
-// --- NEW STROKE HIT TESTING ---
+// --- NEW: STROKE HIT TESTING ---
 /**
  * Performs a simple bounding box hit test to find a draggable stroke under the cursor.
  * @param {number} x Canvas X coordinate.
@@ -684,7 +685,7 @@ function getStrokeUnderCursor(x, y) {
 }
 
 
-// --- Mouse/Drag Handlers (Combined) ---
+// --- MODIFIED: Mouse/Drag Handlers (Combined) ---
 let isResizing = false;
 let activeHandle = null;
 let initialNoteWidth, initialNoteHeight, initialMouseX, initialMouseY, initialNoteX, initialNoteY;
@@ -800,14 +801,14 @@ function startDragOrResize(e) {
         const offsetX = e.offsetX;
         const offsetY = e.offsetY;
         
-        // Initialize currentStroke with bounds
+        // --- MODIFIED: Initialize currentStroke with bounds
         currentStroke = {
             tool: currentTool,
             color: currentStrokeColor,
             width: currentStrokeWidth,
             opacity: currentTool === 'highlight' ? 0.3 : currentOpacity,
             points: [{ x: offsetX, y: offsetY }],
-            bounds: { minX: offsetX, minY: offsetY, maxX: offsetX, maxY: offsetY }
+            bounds: { minX: offsetX, minY: offsetY, maxX: offsetX, maxY: offsetY } // Add bounds
         };
         strokes.push(currentStroke);
 
@@ -980,7 +981,7 @@ function dragOrResize(e) {
         const newPoint = { x: e.offsetX, y: e.offsetY };
         currentStroke.points.push(newPoint);
         
-        // Update bounds for continuous drawing
+        // --- MODIFIED: Update bounds for continuous drawing
         currentStroke.bounds.minX = Math.min(currentStroke.bounds.minX, newPoint.x);
         currentStroke.bounds.minY = Math.min(currentStroke.bounds.minY, newPoint.y);
         currentStroke.bounds.maxX = Math.max(currentStroke.bounds.maxX, newPoint.x);
@@ -1024,7 +1025,7 @@ function endDragOrResize(e) {
         }
     }
 
-    // Dragging End
+    // --- MODIFIED: Dragging End (Handles both notes and strokes) ---
     if (isMoving) {
         if (activeDraggable) {
             // Sticky Note Save
@@ -1048,7 +1049,7 @@ function endDragOrResize(e) {
         // --- NEW: STROKE DRAGGING END ---
         else if (activeDraggableStroke) {
             isMoving = false;
-            saveStrokes();
+            saveStrokes(); // Persist the new coordinates
             activeDraggableStroke = null;
         }
     }
@@ -1072,7 +1073,7 @@ function endDragOrResize(e) {
         // sudden "color pop": convert neutral currentWashiColor to vibrant immediately on placement
         const vibrant = makeColorVibrant(currentWashiColor);
 
-        // Create washi stroke object with vibrant color (opacity 1)
+        // --- MODIFIED: Create washi stroke object with vibrant color AND bounds/points
         const washiStroke = {
             tool: 'washi-tape',
             color: vibrant,
@@ -1892,7 +1893,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stickyNoteIdCounter = parseInt(localStorage.getItem('stickyNoteIdCounter')) || (stickyNotes.length > 0 ? Math.max(...stickyNotes.map(n => n.id)) + 1 : 1);
     }
     
-    // Load persisted strokes
+    // --- MODIFIED: Load persisted strokes
     loadStrokes();
 
     if (canvas && corkboard) initializeStickyWall();
