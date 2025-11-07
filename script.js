@@ -880,7 +880,6 @@ function handleCanvasClick(e) {
         }
     }
 }
-// --- Floating toolbar helpers (unchanged) ---
 
 // --- Floating toolbar helpers (unchanged) ---
 function updateTextStyleButtonStates() {
