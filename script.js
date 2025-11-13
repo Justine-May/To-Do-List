@@ -28,6 +28,43 @@ window.showConfirm = function(message, callback) {
     confirmDeleteBtn.onclick = () => handleConfirm(true);
 };
 
+// --- NEW: Event Coordinate Helpers ---
+
+/**
+ * Gets the clientX/Y coordinates from a mouse or touch event.
+ * @param {Event} e The mouse or touch event.
+ * @returns {{clientX: number, clientY: number}}
+ */
+function getPointerCoords(e) {
+    let clientX, clientY;
+    if (e.touches && e.touches.length) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length) {
+        // Use changedTouches for touchend
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+    return { clientX, clientY };
+}
+
+/**
+ * Gets the offsetX/Y coordinates from a mouse or touch event relative to a target.
+ * @param {Event} e The mouse or touch event.
+ * @param {HTMLElement} targetElement The element to calculate offset against.
+ * @returns {{offsetX: number, offsetY: number}}
+ */
+function getOffsetCoords(e, targetElement) {
+    const { clientX, clientY } = getPointerCoords(e);
+    const rect = targetElement.getBoundingClientRect();
+    const offsetX = clientX - rect.left;
+    const offsetY = clientY - rect.top;
+    return { offsetX, offsetY };
+}
+
 
 // --- GLOBAL STATE (Combined) ---
 let tasks = [];
@@ -618,15 +655,17 @@ function setNoteDrawMode(enable) {
 }
 
 let noteDrawing = false;
-function startNoteDraw(e) {
+// MODIFIED: Accepts offsetX/Y directly
+function startNoteDraw(offsetX, offsetY) {
     if (!isDrawingOnNote || !currentNoteCtx) return;
     noteDrawing = true;
     currentNoteCtx.beginPath();
-    currentNoteCtx.moveTo(e.offsetX, e.offsetY);
-    e.stopPropagation();
+    currentNoteCtx.moveTo(offsetX, offsetY);
+    // e.stopPropagation() is removed, will be handled in main handler
 }
 
-function drawOnNote(e) {
+// MODIFIED: Accepts offsetX/Y directly
+function drawOnNote(offsetX, offsetY) {
     if (!noteDrawing || !currentNoteCtx) return;
 
     currentNoteCtx.strokeStyle = currentStrokeColor;
@@ -644,9 +683,9 @@ function drawOnNote(e) {
         currentNoteCtx.globalAlpha = currentOpacity;
     }
 
-    currentNoteCtx.lineTo(e.offsetX, e.offsetY);
+    currentNoteCtx.lineTo(offsetX, offsetY);
     currentNoteCtx.stroke();
-    e.stopPropagation();
+    // e.stopPropagation() is removed
 }
 
 function endNoteDraw() {
@@ -695,14 +734,18 @@ let isResizing = false;
 let activeHandle = null;
 let initialNoteWidth, initialNoteHeight, initialMouseX, initialMouseY, initialNoteX, initialNoteY;
 
+// MODIFIED: Handles both mouse and touch
 function startDragOrResize(e) {
-    if (e.button !== 0 || !corkboard) return;
+    // MODIFIED: Check for button only on mouse events
+    if (!e.touches && e.button !== 0) return;
+    if (!corkboard) return;
 
     if (!e.target.closest('#note-floating-toolbar')) {
         document.querySelectorAll('.note-dropdown-menu').forEach(m => m.classList.remove('visible'));
     }
 
     const clickedNote = e.target.closest('.sticky-note');
+    const pointerCoords = getPointerCoords(e); // Get unified coords
 
     // Resizing check
     if (e.target.classList.contains('resize-handle')) {
@@ -714,8 +757,9 @@ function startDragOrResize(e) {
         initialNoteHeight = activeNote.offsetHeight;
         initialNoteX = parseInt(activeNote.style.left) || 0;
         initialNoteY = parseInt(activeNote.style.top) || 0;
-        initialMouseX = e.clientX;
-        initialMouseY = e.clientY;
+        // MODIFIED: Use pointerCoords
+        initialMouseX = pointerCoords.clientX;
+        initialMouseY = pointerCoords.clientY;
 
         document.querySelectorAll('.sticky-note').forEach(n => n.style.zIndex = '50');
         activeNote.style.zIndex = '100';
@@ -727,22 +771,26 @@ function startDragOrResize(e) {
 
     // Note Drawing start check
     if (isDrawingOnNote && clickedNote === activeNote && e.target.classList.contains('note-canvas')) {
-        startNoteDraw(e);
+        // MODIFIED: Calculate offset and pass to handler
+        const noteCanvas = activeNote.querySelector('.note-canvas');
+        const { offsetX, offsetY } = getOffsetCoords(e, noteCanvas);
+        startNoteDraw(offsetX, offsetY);
+        e.stopPropagation(); // Stop prop here
         return;
     }
     
-    // --- NEW: STROKE DRAGGING CHECK ---
+    // --- STROKE DRAGGING CHECK ---
     if (currentView === 'sticky-wall' && currentTool === 'select' && e.target === canvas) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        // MODIFIED: Use getOffsetCoords
+        const { offsetX, offsetY } = getOffsetCoords(e, canvas);
 
-        activeDraggableStroke = getStrokeUnderCursor(x, y);
+        activeDraggableStroke = getStrokeUnderCursor(offsetX, offsetY); // Use offset coords
 
         if (activeDraggableStroke) {
             isMoving = true;
-            lastX = e.clientX;
-            lastY = e.clientY;
+            // MODIFIED: Use pointerCoords
+            lastX = pointerCoords.clientX;
+            lastY = pointerCoords.clientY;
             e.preventDefault();
             
             // Bring the stroke to the front by moving it to the end of the array
@@ -767,8 +815,9 @@ function startDragOrResize(e) {
 
         activeDraggable = clickedNote;
         isMoving = true;
-        lastX = e.clientX;
-        lastY = e.clientY;
+        // MODIFIED: Use pointerCoords
+        lastX = pointerCoords.clientX;
+        lastY = pointerCoords.clientY;
 
         document.querySelectorAll('.sticky-note').forEach(n => n.classList.remove('active-note'));
         activeDraggable.classList.add('active-note');
@@ -789,9 +838,10 @@ function startDragOrResize(e) {
     // Main Canvas Drawing: special-case for Washi Tape (straight line)
     if (currentTool === 'washi-tape' && !isDrawingOnNote && e.target === canvas) {
         isWashiDrawing = true;
-        const rect = canvas.getBoundingClientRect();
-        washiStartX = e.clientX - rect.left;
-        washiStartY = e.clientY - rect.top;
+        // MODIFIED: Use getOffsetCoords
+        const { offsetX, offsetY } = getOffsetCoords(e, canvas);
+        washiStartX = offsetX;
+        washiStartY = offsetY;
 
         // show or create the floating washi toolbar at starting point
         showFloatingWashiToolbarAt(washiStartX, washiStartY);
@@ -803,8 +853,8 @@ function startDragOrResize(e) {
     // Main Canvas Drawing: other continuous tools (marker/highlighter/eraser)
     if (currentTool !== 'select' && currentTool !== 'washi-tape' && !isDrawingOnNote && e.target === canvas) {
         drawing = true;
-        const offsetX = e.offsetX;
-        const offsetY = e.offsetY;
+        // MODIFIED: Use getOffsetCoords
+        const { offsetX, offsetY } = getOffsetCoords(e, canvas);
         
         // --- MODIFIED: Initialize currentStroke with bounds
         currentStroke = {
@@ -848,14 +898,23 @@ function startDragOrResize(e) {
     }
 }
 
+// MODIFIED: Handles both mouse and touch
 function dragOrResize(e) {
+    // MODIFIED: Add preventDefault for touch scrolling
+    if (isResizing || isMoving || drawing || noteDrawing || isWashiDrawing) {
+        e.preventDefault();
+    }
+    
     if (!corkboard) return;
+    
+    const pointerCoords = getPointerCoords(e); // Get unified coords
 
     // Resizing Logic
     if (isResizing && activeNote) {
-        e.preventDefault();
-        const dx = e.clientX - initialMouseX;
-        const dy = e.clientY - initialMouseY;
+        // e.preventDefault(); // Already done
+        // MODIFIED: Use pointerCoords
+        const dx = pointerCoords.clientX - initialMouseX;
+        const dy = pointerCoords.clientY - initialMouseY;
         let newWidth = initialNoteWidth;
         let newHeight = initialNoteHeight;
         let newLeft = initialNoteX;
@@ -902,11 +961,12 @@ function dragOrResize(e) {
         return;
     }
 
-    // --- NEW: STROKE DRAGGING LOGIC ---
+    // --- STROKE DRAGGING LOGIC ---
     if (isMoving && activeDraggableStroke) {
-        e.preventDefault();
-        const dx = e.clientX - lastX;
-        const dy = e.clientY - lastY;
+        // e.preventDefault(); // Already done
+        // MODIFIED: Use pointerCoords
+        const dx = pointerCoords.clientX - lastX;
+        const dy = pointerCoords.clientY - lastY;
 
         // Move all points (marker/highlight/washi)
         activeDraggableStroke.points.forEach(point => {
@@ -930,16 +990,18 @@ function dragOrResize(e) {
 
         redrawAllStrokes();
 
-        lastX = e.clientX;
-        lastY = e.clientY;
+        // MODIFIED: Use pointerCoords
+        lastX = pointerCoords.clientX;
+        lastY = pointerCoords.clientY;
         return;
     }
 
     // Dragging Logic (Sticky Note)
     if (isMoving && activeDraggable) {
-        e.preventDefault();
-        const dx = e.clientX - lastX;
-        const dy = e.clientY - lastY;
+        // e.preventDefault(); // Already done
+        // MODIFIED: Use pointerCoords
+        const dx = pointerCoords.clientX - lastX;
+        const dy = pointerCoords.clientY - lastY;
 
         let newLeft = activeDraggable.offsetLeft + dx;
         let newTop = activeDraggable.offsetTop + dy;
@@ -952,8 +1014,9 @@ function dragOrResize(e) {
         activeDraggable.style.left = newLeft + 'px';
         activeDraggable.style.top = newTop + 'px';
 
-        lastX = e.clientX;
-        lastY = e.clientY;
+        // MODIFIED: Use pointerCoords
+        lastX = pointerCoords.clientX;
+        lastY = pointerCoords.clientY;
 
         updateNoteToolbarPosition(activeDraggable);
         return;
@@ -961,7 +1024,7 @@ function dragOrResize(e) {
 
     // Main Canvas Drawing Logic (continuous)
     if (drawing && e.target === canvas) {
-        e.preventDefault();
+        // e.preventDefault(); // Already done
         const currentStroke = strokes[strokes.length - 1]; 
         
         ctx.strokeStyle = currentStroke.color;
@@ -980,10 +1043,13 @@ function dragOrResize(e) {
             ctx.globalAlpha = currentStroke.opacity;
         }
 
-        ctx.lineTo(e.offsetX, e.offsetY);
+        // MODIFIED: Use getOffsetCoords
+        const { offsetX, offsetY } = getOffsetCoords(e, canvas);
+
+        ctx.lineTo(offsetX, offsetY);
         ctx.stroke();
 
-        const newPoint = { x: e.offsetX, y: e.offsetY };
+        const newPoint = { x: offsetX, y: offsetY };
         currentStroke.points.push(newPoint);
         
         // --- MODIFIED: Update bounds for continuous drawing
@@ -993,20 +1059,27 @@ function dragOrResize(e) {
         currentStroke.bounds.maxY = Math.max(currentStroke.bounds.maxY, newPoint.y);
 
         ctx.beginPath();
-        ctx.moveTo(e.offsetX, e.offsetY);
+        ctx.moveTo(offsetX, offsetY);
 
         return;
     }
 
     // Note Drawing Logic
     if (noteDrawing && activeNote) {
-        e.preventDefault();
-        drawOnNote(e);
+        // e.preventDefault(); // Already done
+        // MODIFIED: Use getOffsetCoords and pass to handler
+        const noteCanvas = activeNote.querySelector('.note-canvas');
+        const { offsetX, offsetY } = getOffsetCoords(e, noteCanvas);
+        drawOnNote(offsetX, offsetY);
+        e.stopPropagation(); // Stop prop here
     }
 }
 
+// MODIFIED: Handles both mouse and touch
 function endDragOrResize(e) {
     if (!corkboard) return;
+    
+    // const pointerCoords = getPointerCoords(e); // Get unified coords for touchend
 
     // Resizing End
     if (isResizing && activeNote) {
@@ -1071,9 +1144,10 @@ function endDragOrResize(e) {
     // Washi Tape end (straight-line)
     if (isWashiDrawing && e.target === canvas) {
         isWashiDrawing = false;
-        const rect = canvas.getBoundingClientRect();
-        const endX = e.clientX - rect.left;
-        const endY = e.clientY - rect.top;
+        // MODIFIED: Use getOffsetCoords
+        const { offsetX, offsetY } = getOffsetCoords(e, canvas);
+        const endX = offsetX;
+        const endY = offsetY;
 
         // sudden "color pop": convert neutral currentWashiColor to vibrant immediately on placement
         const vibrant = makeColorVibrant(currentWashiColor);
@@ -2002,10 +2076,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // --- END UPDATED SECTION ---
 
-
+    // MODIFIED: Add touch events
     document.addEventListener('mousedown', startDragOrResize);
+    document.addEventListener('touchstart', startDragOrResize, { passive: false });
+    
     document.addEventListener('mousemove', dragOrResize);
+    document.addEventListener('touchmove', dragOrResize, { passive: false });
+
     document.addEventListener('mouseup', endDragOrResize);
+    document.addEventListener('touchend', endDragOrResize);
+    document.addEventListener('touchcancel', endDragOrResize); // Added for robustness
+
     document.addEventListener('dragend', () => {
         document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
         document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
