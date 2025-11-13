@@ -1143,6 +1143,20 @@ textarea#task-description {
   background: #d0e0ff;
 }
 
+/* NEW FOOTER MENU STYLES */
+.menu-footer {
+    margin-top: auto; /* This pushes it to the bottom */
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.menu-footer ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+/* END NEW STYLES */
+
 
 /* --- UPDATED: Sidebar Toggle & Overlay --- */
 main .menu-toggle {
@@ -1284,4 +1298,70 @@ main .menu-toggle {
         border-left: none;
         padding-left: 0;
      }
+}
+
+/* --- ACCOUNT LOGIN MODAL --- */
+#account-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+}
+
+#account-modal.active {
+  display: flex;
+}
+
+.account-modal-content {
+  background: white;
+  padding: 30px 40px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  position: relative;
+  animation: popIn 0.3s ease;
+}
+
+.account-input {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 1em;
+  width: 100%;
+}
+
+.account-input:focus {
+  border-color: #6a40e1;
+  outline: none;
+}
+
+.google-btn {
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  width: 100%;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+.google-btn:hover {
+  background-color: #f3f3f3;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }

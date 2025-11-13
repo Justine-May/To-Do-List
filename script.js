@@ -2138,6 +2138,234 @@ document.addEventListener('DOMContentLoaded', () => {
     // initial creation of the floating washi toolbar (hidden)
     createFloatingWashiToolbar();
 
+    // MODIFIED SIGN OUT BUTTON LOGIC (now integrated with Firebase)
+    document.getElementById('sign-out-btn')?.addEventListener('click', () => {
+        window.showConfirm("Are you sure you want to sign out? This will clear all local data.", (result) => {
+            if (result) {
+                // This will trigger the auth state listener
+                firebase.auth().signOut()
+                    .then(() => {
+                        console.log('User signed out.');
+                        // Clear all local data upon sign-out
+                        localStorage.removeItem('tasks');
+                        localStorage.removeItem('taskIdCounter');
+                        localStorage.removeItem('stickyNotes');
+                        localStorage.removeItem('stickyNoteIdCounter');
+                        localStorage.removeItem('strokes');
+                        
+                        // Reload the page to apply the empty state
+                        location.reload();
+                    })
+                    .catch((error) => {
+                        console.error('Sign out error', error);
+                        alert(`Could not sign out: ${error.message}`);
+                    });
+            }
+        });
+    });
+
     renderAllViews();
     switchView('matrix');
+});
+
+
+// ####################################################################
+// #################### NEW FIREBASE AUTH LOGIC #####################
+// ####################################################################
+
+// 🟢 STEP 1: PASTE YOUR FIREBASE CONFIG HERE
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+// 🟢 STEP 2: This code will initialize Firebase
+try {
+  firebase.initializeApp(firebaseConfig);
+} catch (e) {
+  if (!/firebase.*already exists/.test(e.message)) {
+    console.error('Firebase initialization error:', e.stack);
+  }
+}
+
+// Get auth instance
+const auth = firebase.auth();
+
+document.addEventListener("DOMContentLoaded", () => {
+  // --- Account Modal Element Selectors ---
+  const accountBtn = document.getElementById("account-btn");
+  const signOutBtn = document.getElementById("sign-out-btn");
+  const accountModal = document.getElementById("account-modal");
+  const closeAccountModal = document.getElementById("close-account-modal");
+
+  // Form containers
+  const loginFormContainer = document.getElementById("login-form-container");
+  const signupFormContainer = document.getElementById("signup-form-container");
+
+  // Form toggles
+  const showSignupFormLink = document.getElementById("show-signup-form");
+  const showLoginFormLink = document.getElementById("show-login-form-link");
+
+  // Forms
+  const loginForm = document.getElementById("login-form");
+  const signupForm = document.getElementById("signup-form");
+
+  // Error messages
+  const loginError = document.getElementById("login-error");
+  const signupError = document.getElementById("signup-error");
+
+  // Google Button
+  const googleLoginBtn = document.getElementById("google-login-btn");
+
+  // --- Modal Visibility ---
+  if (accountBtn) {
+    accountBtn.addEventListener("click", () => {
+      // Reset forms
+      loginForm.reset();
+      signupForm.reset();
+      loginError.classList.add("hidden");
+      signupError.classList.add("hidden");
+      // Show login form by default
+      loginFormContainer.classList.remove("hidden");
+      signupFormContainer.classList.add("hidden");
+      accountModal.classList.add("active");
+    });
+  }
+
+  function closeAuthModal() {
+    accountModal.classList.remove("active");
+  }
+
+  if (closeAccountModal) {
+    closeAccountModal.addEventListener("click", closeAuthModal);
+  }
+
+  if (accountModal) {
+    accountModal.addEventListener("click", (e) => {
+      if (e.target === accountModal) {
+        closeAuthModal();
+      }
+    });
+  }
+
+  // --- Form Toggling ---
+  if (showSignupFormLink) {
+    showSignupFormLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      loginFormContainer.classList.add("hidden");
+      signupFormContainer.classList.remove("hidden");
+    });
+  }
+
+  if (showLoginFormLink) {
+    showLoginFormLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      loginFormContainer.classList.remove("hidden");
+      signupFormContainer.classList.add("hidden");
+    });
+  }
+
+  // --- Firebase Auth Handlers ---
+
+  // 1. Sign Up
+  if (signupForm) {
+    signupForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const email = document.getElementById("signup-email").value;
+      const password = document.getElementById("signup-password").value;
+
+      signupError.classList.add("hidden"); // Hide old errors
+
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          // Signed in
+          console.log("User created:", userCredential.user);
+          alert("Account created successfully! You are now logged in.");
+          closeAuthModal();
+        })
+        .catch((error) => {
+          signupError.textContent = error.message;
+          signupError.classList.remove("hidden");
+        });
+    });
+  }
+
+  // 2. Login
+  if (loginForm) {
+    loginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+
+      loginError.classList.add("hidden"); // Hide old errors
+
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          // Signed in
+          console.log("User logged in:", userCredential.user);
+          closeAuthModal();
+        })
+        .catch((error) => {
+          loginError.textContent = error.message;
+          loginError.classList.remove("hidden");
+        });
+    });
+  }
+
+  // 3. Google Sign-In
+  if (googleLoginBtn) {
+    googleLoginBtn.addEventListener("click", () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      
+      auth.signInWithPopup(provider)
+        .then((result) => {
+          console.log("Google sign-in successful:", result.user);
+          closeAuthModal();
+        })
+        .catch((error) => {
+          loginError.textContent = `Google Error: ${error.message}`;
+          loginError.classList.remove("hidden");
+        });
+    });
+  }
+
+  // 4. Auth State Listener (Manages UI)
+  auth.onAuthStateChanged((user) => {
+    if (user) {
+      // User is signed in
+      console.log("Auth state changed: Logged in as", user.email);
+      if (accountBtn) {
+        // Change "Sign In" button to show user's email (or a generic message)
+        accountBtn.innerHTML = `<i class="fas fa-user-check"></i> ${user.email}`;
+        accountBtn.style.pointerEvents = "none"; // Disable clicking it
+      }
+      if (signOutBtn) {
+        signOutBtn.style.display = "block"; // Show the "Sign Out" button
+      }
+    } else {
+      // User is signed out
+      console.log("Auth state changed: Logged out");
+      if (accountBtn) {
+        accountBtn.innerHTML = `<i class="fas fa-user-circle"></i> Sign In / Create Account`;
+        accountBtn.style.pointerEvents = "auto"; // Re-enable clicking it
+      }
+      if (signOutBtn) {
+        signOutBtn.style.display = "none"; // Hide the "Sign Out" button
+      }
+      
+      // IMPORTANT: When a user logs out, we clear the local-only data.
+      // The sign-out button itself already handles this, but this is a good
+      // place to ensure the UI is clean.
+      // We will reload all data from scratch (which is currently empty)
+      tasks = [];
+      stickyNotes = [];
+      strokes = [];
+      renderAllViews();
+    }
+  });
+
 });

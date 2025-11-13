@@ -1,280 +1,267 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Organizer & Sticky Wall</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
-    
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Organizer & Sticky Wall</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div class="app-container">
-        
-        <aside class="sidebar">
-            <div class="menu-header">
-                <h2>Task Hub</h2>
-                </div>
-            
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" placeholder="Search">
+  <div class="app-container">
+
+    <aside class="sidebar">
+      <div class="menu-header">
+        <h2>Task Hub</h2>
+      </div>
+
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Search" />
+      </div>
+
+      <nav class="menu-sections">
+        <p class="section-title">Views</p>
+        <ul>
+          <li class="task-item active" id="matrix-menu-item" data-view="matrix"><i class="fas fa-columns"></i> Eisenhower Matrix</li>
+          <li class="task-item" id="all-tasks-menu-item" data-view="all-tasks"><i class="fas fa-tasks"></i> All Tasks</li>
+          <li class="task-item" id="sticky-wall-menu-item" data-view="sticky-wall"><i class="fas fa-sticky-note"></i> Sticky Wall</li>
+        </ul>
+      </nav>
+
+      <nav class="menu-footer">
+        <p class="section-title">Account</p>
+        <ul>
+          <li class="task-item" id="account-btn"><i class="fas fa-user-circle"></i> Sign In / Create Account</li>
+          <li class="task-item" id="sign-out-btn"><i class="fas fa-sign-out-alt"></i> Sign Out</li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="relative">
+      <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+      <div class="overlay"></div>
+
+      <div id="matrix-container" class="view-container active">
+        <h1 class="matrix-title">Eisenhower Matrix</h1>
+        <div class="matrix-grid relative">
+          <span class="matrix-axis-label absolute top-2/4 -left-10 transform -translate-y-1/2 rotate-270">IMPORTANT</span>
+          <span class="matrix-axis-label absolute bottom-2/4 -left-10 transform translate-y-1/2 rotate-270">NOT IMPORTANT</span>
+          <span class="matrix-axis-label absolute top-0 left-1/4 transform -translate-x-1/2 mt-2">URGENT</span>
+          <span class="matrix-axis-label absolute top-0 right-1/4 transform -translate-x-1/2 mt-2">NOT URGENT</span>
+
+          <div class="quadrant quadrant-do" data-quadrant="do">
+            <h3><i class="fas fa-bolt"></i> Do Now</h3>
+            <ul class="task-list" id="do-list"></ul>
+            <button class="quadrant-add-btn" data-quadrant="do"><i class="fas fa-plus"></i> Add Task</button>
+          </div>
+          <div class="quadrant quadrant-schedule" data-quadrant="schedule">
+            <h3><i class="fas fa-calendar-alt"></i> Schedule</h3>
+            <ul class="task-list" id="schedule-list"></ul>
+            <button class="quadrant-add-btn" data-quadrant="schedule"><i class="fas fa-plus"></i> Add Task</button>
+          </div>
+          <div class="quadrant quadrant-delegate" data-quadrant="delegate">
+            <h3><i class="fas fa-user-plus"></i> Delegate</h3>
+            <ul class="task-list" id="delegate-list"></ul>
+            <button class="quadrant-add-btn" data-quadrant="delegate"><i class="fas fa-plus"></i> Add Task</button>
+          </div>
+          <div class="quadrant quadrant-eliminate" data-quadrant="eliminate">
+            <h3><i class="fas fa-trash-alt"></i> Eliminate</h3>
+            <ul class="task-list" id="eliminate-list"></ul>
+            <button class="quadrant-add-btn" data-quadrant="eliminate"><i class="fas fa-plus"></i> Add Task</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="all-tasks-container" class="view-container">
+        <div class="all-tasks-header">
+          <h2>All Tasks List</h2>
+          <button class="btn save-btn" id="new-task-btn"><i class="fas fa-plus"></i> New Task</button>
+        </div>
+        <ul id="all-tasks-list"></ul>
+      </div>
+
+      <div id="sticky-wall-container" class="view-container">
+        <div id="corkboard" data-tool="select">
+          <canvas id="annotation-canvas"></canvas>
+        </div>
+
+        <div id="main-toolbar" class="hidden">
+          <div class="toolbar-segment tool-selection">
+            <button class="tool-btn active" data-tool="select" title="Select/Move"><i class="ri-mouse-line"></i> Select</button>
+            <button class="tool-btn" data-tool="marker" title="Marker"><i class="ri-edit-line"></i> Marker</button>
+            <button class="tool-btn" data-tool="highlight" title="Highlighter"><i class="ri-mark-pen-line"></i> Highlight</button>
+            <button class="tool-btn" data-tool="eraser" title="Eraser"><i class="ri-eraser-line"></i> Eraser</button>
+            <button class="tool-btn" data-tool="add-note" title="Add Sticky Note"><i class="ri-sticky-note-line"></i> Note</button>
+            <button class="tool-btn" data-tool="washi-tape" title="Washi Tape"><i class="ri-coupon-4-line"></i> Tape</button>
+          </div>
+
+          <div class="toolbar-segment draw-options">
+            <div id="current-color-indicator" style="background-color: black;" title="Current Color"></div>
+            <input type="range" id="stroke-width-slider" min="1" max="50" value="5" title="Stroke Width">
+            <input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1" title="Opacity (Highlighter Only)">
+          </div>
+
+          <div class="toolbar-segment">
+            <button class="tool-btn" id="undo-btn" title="Undo Last Stroke"><i class="ri-arrow-go-back-line"></i></button>
+            <button class="tool-btn" id="clear-all-btn" title="Clear All Drawings"><i class="ri-delete-bin-line"></i></button>
+          </div>
+        </div>
+
+        <div id="note-floating-toolbar" class="hidden">
+          <div class="note-toolbar-segment note-select-group">
+            <button id="note-color-btn" class="note-tool-btn note-select-btn" title="Note Color">
+              <span id="current-note-color"><i class="note-color-indicator ri-square-fill"></i></span>
+              <i class="ri-arrow-down-s-line ml-1"></i>
+            </button>
+            <div id="note-color-menu" class="note-dropdown-menu">
+              <button class="note-color-option" data-color="yellow" title="Yellow"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="blue" title="Blue"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="green" title="Green"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="pink" title="Pink"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="purple" title="Purple"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="white" title="White"><i class="note-color-indicator ri-square-fill"></i></button>
             </div>
+          </div>
 
-            <nav class="menu-sections">
-                <p class="section-title">Views</p>
-                <ul>
-                    <li class="task-item active" id="matrix-menu-item" data-view="matrix">
-                        <i class="fas fa-columns"></i> Eisenhower Matrix 
-                    </li>
-                    <li class="task-item" id="all-tasks-menu-item" data-view="all-tasks">
-                        <i class="fas fa-tasks"></i> All Tasks
-                    </li>
-                    <li class="task-item" id="sticky-wall-menu-item" data-view="sticky-wall">
-                        <i class="fas fa-sticky-note"></i> Sticky Wall
-                    </li>
-                </ul>
-            </nav>
-        </aside>
-
-        <main class="relative">
-            <button class="menu-toggle"><i class="fas fa-bars"></i></button>
-            <div class="overlay"></div>
-
-            <div id="matrix-container" class="view-container active">
-                <h1 class="matrix-title">Eisenhower Matrix</h1>
-                <div class="matrix-grid relative">
-                    <span class="matrix-axis-label absolute top-2/4 -left-10 transform -translate-y-1/2 rotate-270">IMPORTANT</span>
-                    <span class="matrix-axis-label absolute bottom-2/4 -left-10 transform translate-y-1/2 rotate-270">NOT IMPORTANT</span>
-                    <span class="matrix-axis-label absolute top-0 left-1/4 transform -translate-x-1/2 mt-2">URGENT</span>
-                    <span class="matrix-axis-label absolute top-0 right-1/4 transform -translate-x-1/2 mt-2">NOT URGENT</span>
-                    
-                    <div class="quadrant quadrant-do" data-quadrant="do">
-                        <h3><i class="fas fa-bolt"></i> Do Now</h3>
-                        <ul class="task-list" id="do-list"></ul>
-                        <button class="quadrant-add-btn" data-quadrant="do"><i class="fas fa-plus"></i> Add Task</button>
-                    </div>
-                    <div class="quadrant quadrant-schedule" data-quadrant="schedule">
-                        <h3><i class="fas fa-calendar-alt"></i> Schedule</h3>
-                        <ul class="task-list" id="schedule-list"></ul>
-                        <button class="quadrant-add-btn" data-quadrant="schedule"><i class="fas fa-plus"></i> Add Task</button>
-                    </div>
-                    <div class="quadrant quadrant-delegate" data-quadrant="delegate">
-                        <h3><i class="fas fa-user-plus"></i> Delegate</h3>
-                        <ul class="task-list" id="delegate-list"></ul>
-                        <button class="quadrant-add-btn" data-quadrant="delegate"><i class="fas fa-plus"></i> Add Task</button>
-                    </div>
-                    <div class="quadrant quadrant-eliminate" data-quadrant="eliminate">
-                        <h3><i class="fas fa-trash-alt"></i> Eliminate</h3>
-                        <ul class="task-list" id="eliminate-list"></ul>
-                        <button class="quadrant-add-btn" data-quadrant="eliminate"><i class="fas fa-plus"></i> Add Task</button>
-                    </div>
-                </div>
+          <div class="note-toolbar-segment note-select-group">
+            <button id="note-font-btn" class="note-tool-btn note-select-btn" title="Font Family">
+              <span id="current-font-display">Inter</span>
+              <i class="ri-arrow-down-s-line ml-1"></i>
+            </button>
+            <div id="note-font-menu" class="note-dropdown-menu">
+              <button class="note-font-option" data-font="inter">Inter</button>
+              <button class="note-font-option" data-font="roboto">Roboto</button>
+              <button class="note-font-option" data-font="marker">Permanent Marker</button>
             </div>
+          </div>
 
-            <div id="all-tasks-container" class="view-container">
-                <div class="all-tasks-header">
-                    <h2>All Tasks List</h2>
-                    <button class="btn save-btn" id="new-task-btn"><i class="fas fa-plus"></i> New Task</button>
-                </div>
-                <ul id="all-tasks-list">
-                    </ul>
+          <div class="note-toolbar-segment note-select-group">
+            <button id="note-size-btn" class="note-tool-btn note-select-btn" title="Text Size">
+              <i class="ri-text"></i>
+              <span id="current-size-display">Medium</span>
+              <i class="ri-arrow-down-s-line ml-1"></i>
+            </button>
+            <div id="note-size-menu" class="note-dropdown-menu">
+              <button class="note-size-option" data-size="small">Small</button>
+              <button class="note-size-option active-size" data-size="medium">Medium</button>
+              <button class="note-size-option" data-size="large">Large</button>
             </div>
-            
-            <div id="sticky-wall-container" class="view-container">
-                <div id="corkboard" data-tool="select">
-                    <canvas id="annotation-canvas"></canvas>
-                </div>
-                
-                <div id="main-toolbar" class="hidden">
-                    <div class="toolbar-segment tool-selection">
-                        <button class="tool-btn active" data-tool="select" title="Select/Move">
-                            <i class="ri-mouse-line"></i> Select
-                        </button>
-                        <button class="tool-btn" data-tool="marker" title="Marker">
-                            <i class="ri-edit-line"></i> Marker
-                        </button>
-                        <button class="tool-btn" data-tool="highlight" title="Highlighter">
-                            <i class="ri-mark-pen-line"></i> Highlight
-                        </button>
-                        <button class="tool-btn" data-tool="eraser" title="Eraser">
-                            <i class="ri-eraser-line"></i> Eraser
-                        </button>
-                        <button class="tool-btn" data-tool="add-note" title="Add Sticky Note">
-                            <i class="ri-sticky-note-line"></i> Note
-                        </button>
-                        <button class="tool-btn" data-tool="washi-tape" title="Washi Tape">
-                            <i class="ri-coupon-4-line"></i> Tape
-                        </button>
-                    </div>
-            
-                    <div class="toolbar-segment draw-options">
-                        <div id="current-color-indicator" style="background-color: black;" title="Current Color"></div>
-                        <input type="range" id="stroke-width-slider" min="1" max="50" value="5" title="Stroke Width">
-                        <input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1" title="Opacity (Highlighter Only)">
-                    </div>
+          </div>
 
-                    <div class="toolbar-segment">
-                        <button class="tool-btn" id="undo-btn" title="Undo Last Stroke">
-                            <i class="ri-arrow-go-back-line"></i>
-                        </button>
-                        <button class="tool-btn" id="clear-all-btn" title="Clear All Drawings">
-                            <i class="ri-delete-bin-line"></i>
-                        </button>
-                    </div>
-                </div>
+          <div class="note-toolbar-segment note-formatting-buttons">
+            <button class="note-tool-btn" data-text-style="bold" title="Bold"><i class="ri-bold"></i></button>
+            <button class="note-tool-btn" data-text-style="strike" title="Strikethrough"><i class="ri-strikethrough"></i></button>
+            <button class="note-tool-btn" data-text-style="unordered-list" title="Bullet List"><i class="ri-list-unordered"></i></button>
+            <button class="note-tool-btn" data-text-style="ordered-list" title="Numbered List"><i class="ri-list-ordered"></i></button>
+            <button class="note-tool-btn" id="note-author-btn" title="Insert Author"><i class="ri-at-line"></i></button>
+          </div>
 
-                            <div id="note-floating-toolbar" class="hidden">
-                <div class="note-toolbar-segment note-select-group">
-                    <button id="note-color-btn" class="note-tool-btn note-select-btn" title="Note Color" tabindex="-1">
-                        <span id="current-note-color"><i class="note-color-indicator ri-square-fill"></i></span>
-                        <i class="ri-arrow-down-s-line ml-1"></i>
-                    </button>
-                    <div id="note-color-menu" class="note-dropdown-menu">
-                        <button class="note-color-option" data-color="yellow" title="Yellow">
-                            <i class="note-color-indicator ri-square-fill"></i>
-                        </button>
-                        <button class="note-color-option" data-color="blue" title="Blue">
-                            <i class="note-color-indicator ri-square-fill"></i>
-                        </button>
-                        <button class="note-color-option" data-color="green" title="Green">
-                            <i class="note-color-indicator ri-square-fill"></i>
-                        </button>
-                        <button class="note-color-option" data-color="pink" title="Pink">
-                            <i class="note-color-indicator ri-square-fill"></i>
-                        </button>
-                        <button class="note-color-option" data-color="purple" title="Purple">
-                            <i class="note-color-indicator ri-square-fill"></i>
-                        </button>
-                        <button class="note-color-option" data-color="white" title="White">
-                            <i class="note-color-indicator ri-square-fill"></i>
-                        </button>
-                    </div>
-                </div>
+          <div class="note-toolbar-segment note-right-edge note-action-buttons">
+            <button class="note-tool-btn note-draw-toggle" title="Draw on Note"><i class="ri-pencil-line"></i></button>
+            <button class="note-tool-btn note-delete-btn" title="Delete Note"><i class="ri-delete-bin-line"></i></button>
+          </div>
+        </div>
 
-                <div class="note-toolbar-segment note-select-group">
-                    <button id="note-font-btn" class="note-tool-btn note-select-btn" title="Font Family" tabindex="-1">
-                        <span id="current-font-display">Inter</span>
-                        <i class="ri-arrow-down-s-line ml-1"></i>
-                    </button>
-                    <div id="note-font-menu" class="note-dropdown-menu">
-                        <button class="note-font-option" data-font="inter">Inter (Sans-serif)</button>
-                        <button class="note-font-option" data-font="roboto">Roboto (Sans-serif)</button>
-                        <button class="note-font-option" data-font="marker">Permanent Marker (Handwritten)</button>
-                    </div>
-                </div>
+        <div id="washi-toolbar" class="hidden">
+          <button class="pattern-option active" data-pattern="diagonal">Diagonal</button>
+          <button class="pattern-option" data-pattern="dots">Dots</button>
+          <button class="pattern-option" data-pattern="grid">Grid</button>
+          <button class="pattern-option" data-pattern="plain">Plain</button>
+        </div>
+      </div>
 
-                <div class="note-toolbar-segment note-select-group">
-                    <button id="note-size-btn" class="note-tool-btn note-select-btn" title="Text Size" tabindex="-1">
-                        <i class="ri-text"></i>
-                        <span id="current-size-display">Medium</span>
-                        <i class="ri-arrow-down-s-line ml-1"></i>
-                    </button>
-                    <div id="note-size-menu" class="note-dropdown-menu">
-                        <button class="note-size-option" data-size="small">Small</button>
-                        <button class="note-size-option active-size" data-size="medium">Medium</button>
-                        <button class="note-size-option" data-size="large">Large</button>
-                    </div>
-                </div>
-                
-                <div class="note-toolbar-segment note-formatting-buttons">
-                    <button class="note-tool-btn" data-text-style="bold" title="Bold" tabindex="-1">
-                        <i class="ri-bold"></i>
-                    </button>
-                    <button class="note-tool-btn" data-text-style="strike" title="Strikethrough" tabindex="-1">
-                        <i class="ri-strikethrough"></i>
-                    </button>
-                    <button class="note-tool-btn" data-text-style="unordered-list" title="Bullet/Checklist (Unordered List)" tabindex="-1">
-                        <i class="ri-list-unordered"></i>
-                    </button>
-                    <button class="note-tool-btn" data-text-style="ordered-list" title="Numbered List" tabindex="-1">
-                        <i class="ri-list-ordered"></i>
-                    </button>
-                    <button class="note-tool-btn" id="note-author-btn" title="Insert Author/Username" tabindex="-1">
-                        <i class="ri-at-line"></i>
-                    </button>
-                </div>
-
-                <div class="note-toolbar-segment note-right-edge note-action-buttons">
-                    <button class="note-tool-btn note-draw-toggle" title="Draw on Note" tabindex="-1">
-                        <i class="ri-pencil-line"></i>
-                    </button>
-                    <button class="note-tool-btn note-delete-btn" title="Delete Note" tabindex="-1">
-                        <i class="ri-delete-bin-line"></i>
-                    </button>
-                </div>
-
-                <div id="washi-toolbar" class="hidden">
-                  <button class="pattern-option active" data-pattern="diagonal">Diagonal</button>
-                  <button class="pattern-option" data-pattern="dots">Dots</button>
-                  <button class="pattern-option" data-pattern="grid">Grid</button>
-                  <button class="pattern-option" data-pattern="plain">Plain</button>
-                </div>
-
-            </div>
-            </div>
-            
-            <div id="task-details-modal" class="modal-overlay">
-    <div class="modal-content">
-        <button class="close-button" onclick="closeModal()">&times;</button>
-        <h2 id="modal-title">Task Details</h2>
-        <form id="task-form">
+      <div id="task-details-modal" class="modal-overlay">
+        <div class="modal-content">
+          <button class="close-button" onclick="closeModal()">&times;</button>
+          <h2 id="modal-title">Task Details</h2>
+          <form id="task-form">
             <input type="hidden" id="current-task-id" value="">
-            
             <div class="form-group">
-                <label for="task-title"><i class="fas fa-heading"></i> Title</label>
-                <input type="text" id="task-title" required placeholder="Enter task title">
+              <label for="task-title"><i class="fas fa-heading"></i> Title</label>
+              <input type="text" id="task-title" required placeholder="Enter task title">
             </div>
-
             <div class="form-row">
-                <div class="form-group half-width">
-                    <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
-                    <input type="date" id="task-due-date">
-                </div>
-                <div class="form-group half-width">
-                    <label for="task-priority"><i class="fas fa-star"></i> Quadrant</label>
-                    <select id="task-priority" required>
-                        <option value="do">Do Now (Urgent & Important)</option>
-                        <option value="schedule">Schedule (Important, Not Urgent)</option>
-                        <option value="delegate">Delegate (Urgent, Not Important)</option>
-                        <option value="eliminate">Eliminate (Not Urgent & Not Important)</option>
-                    </select>
-                </div>
+              <div class="form-group half-width">
+                <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
+                <input type="date" id="task-due-date">
+              </div>
+              <div class="form-group half-width">
+                <label for="task-priority"><i class="fas fa-star"></i> Quadrant</label>
+                <select id="task-priority" required>
+                  <option value="do">Do Now</option>
+                  <option value="schedule">Schedule</option>
+                  <option value="delegate">Delegate</option>
+                  <option value="eliminate">Eliminate</option>
+                </select>
+              </div>
             </div>
-
             <div class="form-group">
-                <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
-                <textarea id="task-description" placeholder="Add details or notes..."></textarea>
+              <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
+              <textarea id="task-description" placeholder="Add details..."></textarea>
             </div>
-            
-            <div class="form-group" id="subtasks-container">
-                <label><i class="fas fa-list-ul"></i> Subtasks</label>
-                <ul class="subtask-list" id="subtask-list">
-                    </ul>
-                <div class="subtask-input-group">
-                    <input type="text" id="new-subtask-text" placeholder="Add a new subtask">
-                    <button type="button" class="btn add-subtask-btn"><i class="fas fa-plus"></i></button>
-                </div>
-            </div>
-
             <div class="modal-actions">
-                <button type="button" class="btn delete-btn hidden" id="delete-task-btn">
-                    <i class="fas fa-trash-alt"></i> Delete
-                </button>
-                <button type="submit" class="btn save-btn" id="save-task-btn">
-                    <i class="fas fa-save"></i> Save Task
-                </button>
+              <button type="button" class="btn delete-btn hidden" id="delete-task-btn"><i class="fas fa-trash-alt"></i> Delete</button>
+              <button type="submit" class="btn save-btn" id="save-task-btn"><i class="fas fa-save"></i> Save Task</button>
             </div>
-        </form>
-    </div>
-</div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
 
-            </main>
+  <div id="account-modal" class="modal-overlay">
+    <div class="account-modal-content">
+      <button class="close-button" id="close-account-modal">&times;</button>
+      
+      <div id="login-form-container">
+        <h2 class="text-2xl font-bold mb-4 text-center text-purple-700">Welcome Back!</h2>
+        <p class="text-center text-gray-600 mb-6">Sign in to sync your workspace.</p>
+        
+        <form id="login-form" class="flex flex-col gap-3">
+          <input type="email" id="login-email" placeholder="Email" required class="account-input" />
+          <input type="password" id="login-password" placeholder="Password" required class="account-input" />
+          <button type="submit" class="btn save-btn w-full">Sign In</button>
+          <p id="login-error" class="text-red-500 text-sm hidden"></p> </form>
+        
+        <p class="text-center text-sm text-gray-500 mt-4">
+          Don't have an account? 
+          <a href="#" id="show-signup-form" class="text-purple-700 hover:underline">Create one</a>
+        </p>
+      </div>
+
+      <div id="signup-form-container" class="hidden"> <h2 class="text-2xl font-bold mb-4 text-center text-purple-700">Create an Account</h2>
+        <p class="text-center text-gray-600 mb-6">Sync your workspace across devices.</p>
+
+        <form id="signup-form" class="flex flex-col gap-3">
+          <input type="email" id="signup-email" placeholder="Email" required class="account-input" />
+          <input type="password" id="signup-password" placeholder="Password (min 6 characters)" required class="account-input" />
+          <button type="submit" class="btn save-btn w-full">Create Account</button>
+          <p id="signup-error" class="text-red-500 text-sm hidden"></p> </form>
+        
+        <p class="text-center text-sm text-gray-500 mt-4">
+          Already have an account? 
+          <a href="#" id="show-login-form-link" class="text-purple-700 hover:underline">Sign In</a>
+        </p>
+      </div>
+
+      <div class="flex items-center my-4">
+        <hr class="flex-grow border-gray-300" />
+        <span class="px-3 text-gray-400 text-sm">or</span>
+        <hr class="flex-grow border-gray-300" />
+      </div>
+
+      <button id="google-login-btn" class="google-btn">
+        <i class="fab fa-google mr-2"></i> Sign in with Google
+      </button>
     </div>
-    
-    <script src="script.js"></script>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
