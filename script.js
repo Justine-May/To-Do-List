@@ -567,6 +567,11 @@ function toggleDropdown(menu) {
 function updateNoteToolbarPosition(note) {
     if (!note.parentNode || !noteFloatingToolbar) return;
 
+    // Don't update position on mobile, as it's fixed to the bottom
+    if (window.innerWidth <= 768) {
+        return;
+    }
+
     const noteX = parseInt(note.style.left) || 0;
     const noteY = parseInt(note.style.top) || 0;
     const noteWidth = note.offsetWidth;
@@ -1948,12 +1953,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- UPDATED: Sidebar Toggle and Navigation Logic ---
+    const sidebar = document.querySelector('.sidebar');
+    const menuToggle = document.querySelector('.menu-toggle');
+    const overlay = document.querySelector('.overlay');
+
+    if (menuToggle && sidebar) {
+        menuToggle.addEventListener('click', () => {
+            const isCollapsing = !sidebar.classList.contains('collapsed');
+            sidebar.classList.toggle('collapsed');
+            
+            // Show/hide overlay only on mobile
+            if (window.innerWidth <= 768) {
+                if (isCollapsing) {
+                    overlay.classList.remove('active');
+                } else {
+                    overlay.classList.add('active');
+                }
+            }
+        });
+    }
+    
+    if (overlay && sidebar) {
+        overlay.addEventListener('click', () => {
+            sidebar.classList.add('collapsed');
+            overlay.classList.remove('active'); // Hide overlay when clicked
+        });
+    }
+
+    // Also, close sidebar when a view is clicked on mobile
     document.querySelectorAll('.sidebar .task-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.getAttribute('data-view');
-            if (view) switchView(view);
+            if (view) {
+                switchView(view);
+                // Auto-close sidebar on mobile after selection
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('collapsed');
+                    overlay.classList.remove('active'); // Hide overlay
+                }
+            }
         });
     });
+
+    // Check initial state on load
+    if (window.innerWidth <= 768) {
+        sidebar.classList.add('collapsed');
+    }
+    // --- END UPDATED SECTION ---
+
 
     document.addEventListener('mousedown', startDragOrResize);
     document.addEventListener('mousemove', dragOrResize);

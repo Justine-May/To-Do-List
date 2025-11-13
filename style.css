@@ -28,7 +28,25 @@ body {
     flex-direction: column;
     overflow-y: auto;
     z-index: 10;
+    /* Added transition for desktop collapse */
+    transition: width 0.3s ease, padding 0.3s ease, transform 0.3s ease-in-out;
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
 }
+
+/* NEW: Desktop collapsed state */
+.sidebar.collapsed {
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    overflow-x: hidden; /* Hide content */
+}
+
+/* NEW: Hide content instantly when collapsing on desktop */
+.sidebar.collapsed > * {
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+
 
 .menu-header {
     display: flex;
@@ -1125,3 +1143,145 @@ textarea#task-description {
   background: #d0e0ff;
 }
 
+
+/* --- UPDATED: Sidebar Toggle & Overlay --- */
+main .menu-toggle {
+    display: flex; /* UPDATED: Show on all screen sizes */
+    position: absolute; /* UPDATED: Position relative to main */
+    top: 15px;
+    left: 15px;
+    background: #ffffff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001; /* Above sidebar */
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+    z-index: 999; /* Below sidebar, above content */
+}
+
+/* NEW: Show overlay when it has the .active class (controlled by JS) */
+.overlay.active {
+    display: block;
+}
+
+
+/* --- UPDATED: Responsiveness --- */
+
+/* --- Tablet (e.g., stacking matrix) --- */
+@media (max-width: 1024px) {
+    .matrix-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto auto;
+        height: auto; /* Allow it to grow */
+        min-height: calc(100vh - 120px);
+    }
+    
+    .quadrant {
+        min-height: 300px; /* Give quadrants a min height when stacked */
+    }
+
+    main {
+        padding: 25px;
+    }
+    
+    /* Hide sticky wall toolbar text on smaller screens */
+    #main-toolbar .tool-btn {
+        font-size: 0; /* Hide text */
+        padding: 8px 10px;
+    }
+    #main-toolbar .tool-btn i {
+        margin-right: 0; /* No margin as text is hidden */
+        font-size: 1.2em;
+    }
+    #main-toolbar {
+        gap: 5px;
+    }
+    .toolbar-segment {
+        gap: 5px;
+    }
+    .toolbar-segment + .toolbar-segment {
+        padding-left: 8px;
+    }
+}
+
+/* --- Mobile (e.g., collapsing sidebar) --- */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed; /* Change from relative to fixed */
+        width: 280px; /* Explicitly set width */
+        height: 100vh;
+        z-index: 1000;
+        transform: translateX(0); /* Default is "open" transform */
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    .sidebar.collapsed {
+        width: 280px; /* Keep width for transform */
+        transform: translateX(-100%); /* "Collapsed" means off-screen */
+        padding: 20px; /* Reset padding */
+    }
+    
+    /* NEW: On mobile, content should stay visible during slide */
+    .sidebar.collapsed > * {
+        opacity: 1;
+    }
+
+    main {
+        padding: 20px;
+        padding-top: 70px; /* Add space for the fixed toggle button */
+    }
+
+    main .menu-toggle {
+        position: fixed; /* Fixed position on mobile */
+    }
+
+    /* Overlay logic is now handled by .active class from JS */
+
+    /* Make modal full-screen on mobile */
+    .modal-content {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+    
+    /* Adjust sticky note toolbar for small screens */
+    #note-floating-toolbar {
+        width: 95%;
+        left: 2.5% !important; /* Force center */
+        top: auto !important;
+        bottom: 10px;
+        transform: none;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    /* Adjust main sticky toolbar */
+     #main-toolbar {
+        width: 95%;
+        left: 50%;
+        transform: translateX(-50%);
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 5px;
+     }
+     .toolbar-segment {
+        border-left: none;
+        padding-left: 0;
+     }
+}
