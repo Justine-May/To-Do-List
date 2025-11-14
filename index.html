@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Task Organizer & Sticky Wall</title>
+  
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet" />
@@ -32,13 +36,13 @@
         </ul>
       </nav>
 
-      <nav class="menu-footer">
+      <div class="menu-footer">
         <p class="section-title">Account</p>
         <ul>
           <li class="task-item" id="account-btn"><i class="fas fa-user-circle"></i> Sign In / Create Account</li>
-          <li class="task-item" id="sign-out-btn"><i class="fas fa-sign-out-alt"></i> Sign Out</li>
+          <li class="task-item" id="sign-out-btn" style="display: none;"><i class="fas fa-sign-out-alt"></i> Sign Out</li>
         </ul>
-      </nav>
+      </div>
     </aside>
 
     <main class="relative">
@@ -101,8 +105,9 @@
 
           <div class="toolbar-segment draw-options">
             <div id="current-color-indicator" style="background-color: black;" title="Current Color"></div>
+            <input type="color" id="stroke-color-input" class="hidden-color-input" value="#000000">
             <input type="range" id="stroke-width-slider" min="1" max="50" value="5" title="Stroke Width">
-            <input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1" title="Opacity (Highlighter Only)">
+            <input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1" title="Opacity (Marker/Highlight)">
           </div>
 
           <div class="toolbar-segment">
@@ -118,12 +123,12 @@
               <i class="ri-arrow-down-s-line ml-1"></i>
             </button>
             <div id="note-color-menu" class="note-dropdown-menu">
-              <button class="note-color-option" data-color="yellow" title="Yellow"><i class="note-color-indicator ri-square-fill"></i></button>
-              <button class="note-color-option" data-color="blue" title="Blue"><i class="note-color-indicator ri-square-fill"></i></button>
-              <button class="note-color-option" data-color="green" title="Green"><i class="note-color-indicator ri-square-fill"></i></button>
-              <button class="note-color-option" data-color="pink" title="Pink"><i class="note-color-indicator ri-square-fill"></i></button>
-              <button class="note-color-option" data-color="purple" title="Purple"><i class="note-color-indicator ri-square-fill"></i></button>
-              <button class="note-color-option" data-color="white" title="White"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="yellow" style="color: #fff9b0;"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="blue" style="color: #a0d9ff;"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="green" style="color: #baffc9;"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="pink" style="color: #ffb3ba;"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="purple" style="color: #e0b5ff;"><i class="note-color-indicator ri-square-fill"></i></button>
+              <button class="note-color-option" data-color="white" style="color: #FFFFFF;"><i class="note-color-indicator ri-square-fill"></i></button>
             </div>
           </div>
 
@@ -135,7 +140,7 @@
             <div id="note-font-menu" class="note-dropdown-menu">
               <button class="note-font-option" data-font="inter">Inter</button>
               <button class="note-font-option" data-font="roboto">Roboto</button>
-              <button class="note-font-option" data-font="marker">Permanent Marker</button>
+              <button class="note-font-option" data-font="marker" style="font-family: 'Permanent Marker', cursive;">Marker</button>
             </div>
           </div>
 
@@ -165,13 +170,8 @@
             <button class="note-tool-btn note-delete-btn" title="Delete Note"><i class="ri-delete-bin-line"></i></button>
           </div>
         </div>
-
-        <div id="washi-toolbar" class="hidden">
-          <button class="pattern-option active" data-pattern="diagonal">Diagonal</button>
-          <button class="pattern-option" data-pattern="dots">Dots</button>
-          <button class="pattern-option" data-pattern="grid">Grid</button>
-          <button class="pattern-option" data-pattern="plain">Plain</button>
-        </div>
+        
+        <div id="washi-toolbar" class="hidden"></div>
       </div>
 
       <div id="task-details-modal" class="modal-overlay">
@@ -212,39 +212,46 @@
       </div>
     </main>
   </div>
+  
+  <div id="custom-confirm-dialog" class="custom-confirm-overlay hidden">
+    <div class="custom-confirm-box">
+      <p id="confirm-message">Are you sure?</p>
+      <div class="actions">
+        <button id="confirm-cancel-btn">Cancel</button>
+        <button id="confirm-delete-btn">Delete</button>
+      </div>
+    </div>
+  </div>
 
   <div id="account-modal" class="modal-overlay">
     <div class="account-modal-content">
       <button class="close-button" id="close-account-modal">&times;</button>
-      
+
       <div id="login-form-container">
         <h2 class="text-2xl font-bold mb-4 text-center text-purple-700">Welcome Back!</h2>
         <p class="text-center text-gray-600 mb-6">Sign in to sync your workspace.</p>
-        
         <form id="login-form" class="flex flex-col gap-3">
           <input type="email" id="login-email" placeholder="Email" required class="account-input" />
           <input type="password" id="login-password" placeholder="Password" required class="account-input" />
+          <p id="login-error" class="text-red-500 text-sm hidden">Error message</p>
           <button type="submit" class="btn save-btn w-full">Sign In</button>
-          <p id="login-error" class="text-red-500 text-sm hidden"></p> </form>
-        
-        <p class="text-center text-sm text-gray-500 mt-4">
-          Don't have an account? 
-          <a href="#" id="show-signup-form" class="text-purple-700 hover:underline">Create one</a>
+        </form>
+        <p class="text-center text-sm text-gray-600 mt-4">
+          Don't have an account? <a href="#" id="show-signup-form" class="text-purple-700 hover:underline">Create one</a>
         </p>
       </div>
 
-      <div id="signup-form-container" class="hidden"> <h2 class="text-2xl font-bold mb-4 text-center text-purple-700">Create an Account</h2>
-        <p class="text-center text-gray-600 mb-6">Sync your workspace across devices.</p>
-
+      <div id="signup-form-container" class="hidden">
+        <h2 class="text-2xl font-bold mb-4 text-center text-purple-700">Create Account</h2>
+        <p class="text-center text-gray-600 mb-6">Get started for free.</p>
         <form id="signup-form" class="flex flex-col gap-3">
           <input type="email" id="signup-email" placeholder="Email" required class="account-input" />
-          <input type="password" id="signup-password" placeholder="Password (min 6 characters)" required class="account-input" />
+          <input type="password" id="signup-password" placeholder="Password (min. 6 characters)" required class="account-input" />
+          <p id="signup-error" class="text-red-500 text-sm hidden">Error message</p>
           <button type="submit" class="btn save-btn w-full">Create Account</button>
-          <p id="signup-error" class="text-red-500 text-sm hidden"></p> </form>
-        
-        <p class="text-center text-sm text-gray-500 mt-4">
-          Already have an account? 
-          <a href="#" id="show-login-form-link" class="text-purple-700 hover:underline">Sign In</a>
+        </form>
+        <p class="text-center text-sm text-gray-600 mt-4">
+          Already have an account? <a href="#" id="show-login-form-link" class="text-purple-700 hover:underline">Sign in</a>
         </p>
       </div>
 
@@ -260,8 +267,6 @@
     </div>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

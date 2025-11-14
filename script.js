@@ -80,6 +80,7 @@ let firestoreAppId = null;
 // Dedicated state for sticky notes (DECOUPLED)
 let stickyNotes = [];
 let stickyNoteIdCounter = 1;
+let imageElementIdCounter = 1; // NEW: Counter for dropped images
 
 // --- CONSTANTS ---
 const STICKY_NOTE_BG_COLORS = {
@@ -493,6 +494,41 @@ function createStickyNote(note) {
     return element;
 }
 
+// --- NEW: IMAGE ELEMENT CREATION ---
+function createImageElement(imageData) {
+    const element = document.createElement('img');
+    element.className = 'draggable image-element'; // Use draggable class
+    element.setAttribute('data-image-id', imageData.id);
+    element.src = imageData.src;
+    
+    // Default styles
+    element.style.position = 'absolute';
+    element.style.left = imageData.canvasX + 'px';
+    element.style.top = imageData.canvasY + 'px';
+    element.style.maxWidth = imageData.width ? imageData.width + 'px' : '200px';
+    element.style.height = 'auto'; // Maintain aspect ratio
+    // --- UPDATED: Remove shadow and square border ---
+    element.style.borderRadius = '0'; 
+    element.style.boxShadow = 'none'; 
+    // --------------------------------------------------
+    
+    // Add context menu/delete option (simple, for now)
+    element.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        window.showConfirm("Delete this image?", (result) => {
+            if (result) {
+                // Since images are not persisted via local storage in this scope, 
+                // we simply remove the DOM element.
+                element.remove();
+            }
+        });
+    });
+
+    if (corkboard) corkboard.appendChild(element);
+    return element;
+}
+
+
 function renderStickyWallNotes() {
     if (!corkboard) return;
 
@@ -525,6 +561,55 @@ function renderStickyWallNotes() {
         }
     });
 }
+
+// --- NEW: DRAG AND DROP HANDLERS FOR IMAGE FILES ---
+
+function handleCorkboardDragOver(e) {
+    e.preventDefault(); // Necessary to allow dropping
+    e.dataTransfer.dropEffect = 'copy';
+}
+
+function handleCorkboardDrop(e) {
+    e.preventDefault();
+    
+    // Only proceed if the drop event contains files
+    if (e.dataTransfer.files.length === 0) return;
+
+    // Get the position of the drop relative to the corkboard
+    const corkboardRect = corkboard.getBoundingClientRect();
+    const dropX = e.clientX - corkboardRect.left + corkboard.scrollLeft;
+    const dropY = e.clientY - corkboardRect.top + corkboard.scrollTop;
+
+    for (const file of e.dataTransfer.files) {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Calculate size: Max 200px width
+                    const maxWidth = 200;
+                    const width = Math.min(img.width, maxWidth);
+                    const height = (img.height / img.width) * width;
+
+                    const imageData = {
+                        // Using a string ID here since we aren't persisting them
+                        id: 'img-' + imageElementIdCounter++, 
+                        src: event.target.result, // Base64 data URL
+                        canvasX: dropX - (width / 2), // Center image at drop point
+                        canvasY: dropY - (height / 2),
+                        width: width,
+                        height: height
+                    };
+                    
+                    createImageElement(imageData);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+}
+
 
 // --- Floating toolbar helpers (unchanged) ---
 function updateTextStyleButtonStates() {
@@ -744,10 +829,11 @@ function startDragOrResize(e) {
         document.querySelectorAll('.note-dropdown-menu').forEach(m => m.classList.remove('visible'));
     }
 
+    const clickedElement = e.target.closest('.sticky-note, .image-element');
     const clickedNote = e.target.closest('.sticky-note');
     const pointerCoords = getPointerCoords(e); // Get unified coords
 
-    // Resizing check
+    // Resizing check (only for notes)
     if (e.target.classList.contains('resize-handle')) {
         isResizing = true;
         activeHandle = e.target;
@@ -804,33 +890,53 @@ function startDragOrResize(e) {
         }
     }
 
-    // Dragging check (Sticky Note)
-    if (clickedNote && currentTool === 'select' && !isDrawingOnNote) {
-        const contentArea = clickedNote.querySelector('.sticky-note-content');
-        if (contentArea.contains(e.target)) {
-            if (document.activeElement === contentArea) {
-                return;
+    // Dragging check (Sticky Note or Image)
+    if (clickedElement && currentTool === 'select' && !isDrawingOnNote) {
+        // If it's a note, check if we're focused on content.
+        if (clickedNote) {
+            const contentArea = clickedNote.querySelector('.sticky-note-content');
+            if (contentArea.contains(e.target)) {
+                if (document.activeElement === contentArea) {
+                    return;
+                }
             }
         }
-
-        activeDraggable = clickedNote;
+        
+        // This is the element to drag
+        activeDraggable = clickedElement;
         isMoving = true;
         // MODIFIED: Use pointerCoords
         lastX = pointerCoords.clientX;
         lastY = pointerCoords.clientY;
 
         document.querySelectorAll('.sticky-note').forEach(n => n.classList.remove('active-note'));
-        activeDraggable.classList.add('active-note');
+        
+        // Handle toolbar for notes only
+        if (clickedNote) {
+            activeNote = clickedNote;
+            activeDraggable.classList.add('active-note');
+            updateNoteToolbarState();
+            updateNoteToolbarPosition(activeNote);
+            noteFloatingToolbar?.classList.remove('hidden');
+            
+            // Bring note to front
+            document.querySelectorAll('.draggable').forEach(n => {
+                if(n.classList.contains('sticky-note')) n.style.zIndex = '50';
+                if(n.classList.contains('image-element')) n.style.zIndex = '50';
+            });
+            activeNote.style.zIndex = '100';
+        } else {
+             // Bring image to front
+            document.querySelectorAll('.draggable').forEach(n => {
+                if(n.classList.contains('sticky-note')) n.style.zIndex = '50';
+                if(n.classList.contains('image-element')) n.style.zIndex = '50';
+            });
+            activeDraggable.style.zIndex = '60'; // Below note (100) but above drawings/tapes
+            noteFloatingToolbar?.classList.add('hidden');
+            activeNote = null;
+        }
+        
         activeDraggable.classList.add('is-moving');
-        activeNote = activeDraggable;
-
-        updateNoteToolbarState();
-        updateNoteToolbarPosition(activeNote);
-        noteFloatingToolbar?.classList.remove('hidden');
-
-        document.querySelectorAll('.sticky-note').forEach(n => n.style.zIndex = '50');
-        activeNote.style.zIndex = '100';
-
         e.preventDefault();
         return;
     }
@@ -890,7 +996,7 @@ function startDragOrResize(e) {
     }
 
     // Clicked outside
-    if (activeNote && !e.target.closest('.sticky-note') && !e.target.closest('#note-floating-toolbar')) {
+    if (activeNote && !e.target.closest('.sticky-note') && !e.target.closest('.image-element') && !e.target.closest('#note-floating-toolbar')) {
         activeNote.classList.remove('active-note');
         noteFloatingToolbar?.classList.add('hidden');
         activeNote = null;
@@ -909,7 +1015,7 @@ function dragOrResize(e) {
     
     const pointerCoords = getPointerCoords(e); // Get unified coords
 
-    // Resizing Logic
+    // Resizing Logic (Notes only)
     if (isResizing && activeNote) {
         // e.preventDefault(); // Already done
         // MODIFIED: Use pointerCoords
@@ -996,7 +1102,7 @@ function dragOrResize(e) {
         return;
     }
 
-    // Dragging Logic (Sticky Note)
+    // Dragging Logic (Sticky Note or Image)
     if (isMoving && activeDraggable) {
         // e.preventDefault(); // Already done
         // MODIFIED: Use pointerCoords
@@ -1018,7 +1124,9 @@ function dragOrResize(e) {
         lastX = pointerCoords.clientX;
         lastY = pointerCoords.clientY;
 
-        updateNoteToolbarPosition(activeDraggable);
+        if (activeDraggable.classList.contains('sticky-note')) {
+            updateNoteToolbarPosition(activeDraggable);
+        }
         return;
     }
 
@@ -1103,26 +1211,30 @@ function endDragOrResize(e) {
         }
     }
 
-    // --- MODIFIED: Dragging End (Handles both notes and strokes) ---
+    // --- MODIFIED: Dragging End (Handles notes, images, and strokes) ---
     if (isMoving) {
         if (activeDraggable) {
             // Sticky Note Save
             isMoving = false;
             activeDraggable.classList.remove('is-moving');
 
-            const noteId = parseInt(activeDraggable.getAttribute('data-note-id'));
-            const note = stickyNotes.find(n => n.id === noteId);
-            if (note) {
-                note.canvasX = parseInt(activeDraggable.style.left) || 0;
-                note.canvasY = parseInt(activeDraggable.style.top) || 0;
-                saveStickyNote(note);
+            if (activeDraggable.classList.contains('sticky-note')) {
+                const noteId = parseInt(activeDraggable.getAttribute('data-note-id'));
+                const note = stickyNotes.find(n => n.id === noteId);
+                if (note) {
+                    note.canvasX = parseInt(activeDraggable.style.left) || 0;
+                    note.canvasY = parseInt(activeDraggable.style.top) || 0;
+                    saveStickyNote(note);
+                }
+                if (activeNote) {
+                    updateNoteToolbarState();
+                    noteFloatingToolbar?.classList.remove('hidden');
+                }
             }
-            activeDraggable = null;
+            
+            // For images, we just stop the movement. No persistence implemented.
 
-            if (activeNote) {
-                updateNoteToolbarState();
-                noteFloatingToolbar?.classList.remove('hidden');
-            }
+            activeDraggable = null;
         }
         // --- NEW: STROKE DRAGGING END ---
         else if (activeDraggableStroke) {
@@ -1893,6 +2005,10 @@ function initializeStickyWall() {
     ctx = canvas.getContext('2d');
     redrawAllStrokes();
     renderStickyWallNotes();
+    
+    // --- NEW: Add Drag and Drop listeners for images ---
+    corkboard.addEventListener('dragover', handleCorkboardDragOver);
+    corkboard.addEventListener('drop', handleCorkboardDrop);
 }
 
 // --- Drag and Drop (Matrix View) ---
