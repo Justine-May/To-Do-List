@@ -233,7 +233,12 @@
         <form id="login-form" class="flex flex-col gap-3">
           <input type="email" id="login-email" placeholder="Email" required class="account-input" />
           <input type="password" id="login-password" placeholder="Password" required class="account-input" />
+          
+          <a href="#" id="forgot-password-link" class="text-purple-700 text-sm hover:underline self-end -mt-2">Forgot password?</a>
+          
           <p id="login-error" class="text-red-500 text-sm hidden">Error message</p>
+          <p id="reset-success-message" class="text-green-500 text-sm hidden"></p>
+          
           <button type="submit" class="btn save-btn w-full">Sign In</button>
         </form>
         <p class="text-center text-sm text-gray-600 mt-4">

@@ -184,10 +184,9 @@ const USERNAME = '@User';
 
 // MODIFIED: Save strokes to Firestore or localStorage
 function saveStrokes() {
-    if (firestoreUserId) {
+    if (firestoreUserId && firestoreDB) {
         firestoreDB.collection('user_data').doc(firestoreUserId).set({
             strokes: strokes,
-            // Only tracking the strokes array is necessary for restore
         }, { merge: true })
         .catch(error => console.error("Error saving strokes to Firestore: ", error));
     } else {
@@ -233,12 +232,14 @@ function saveTask(taskData) {
     if (taskData.id) {
         task = tasks.find(t => t.id === taskData.id);
         if (task) {
-            task.title = taskData.title;
-            task.description = taskData.description;
-            task.dueDate = taskData.dueDate;
-            task.quadrant = taskData.quadrant || 'do';
-            task.completed = taskData.completed !== undefined ? taskData.completed : task.completed;
-            task.subtasks = taskData.subtasks || task.subtasks;
+            Object.assign(task, {
+                title: taskData.title,
+                description: taskData.description,
+                dueDate: taskData.dueDate,
+                quadrant: taskData.quadrant || 'do',
+                completed: taskData.completed !== undefined ? taskData.completed : task.completed,
+                subtasks: taskData.subtasks || task.subtasks
+            });
         }
     } else {
         task = {
@@ -253,7 +254,7 @@ function saveTask(taskData) {
         tasks.push(task);
     }
 
-    if (firestoreUserId) {
+    if (firestoreUserId && firestoreDB) {
         firestoreDB.collection('user_data').doc(firestoreUserId).set({
             tasks: tasks,
             taskIdCounter: taskIdCounter
@@ -274,7 +275,7 @@ function deleteTask(id) {
     tasks = tasks.filter(t => t.id !== id);
 
     if (tasks.length < initialLength) {
-        if (firestoreUserId) {
+        if (firestoreUserId && firestoreDB) {
              firestoreDB.collection('user_data').doc(firestoreUserId).set({
                 tasks: tasks
             }, { merge: true })
@@ -296,7 +297,7 @@ function toggleTaskCompletion(id, isCompleted) {
         task.completed = isCompleted;
         task.completedDate = isCompleted ? new Date().toISOString().split('T')[0] : null;
 
-        if (firestoreUserId) {
+        if (firestoreUserId && firestoreDB) {
             // Find the index and update the array in Firestore
             firestoreDB.collection('user_data').doc(firestoreUserId).set({
                 tasks: tasks
@@ -336,7 +337,7 @@ function saveStickyNote(noteData) {
         stickyNotes.push(note);
     }
 
-    if (firestoreUserId) {
+    if (firestoreUserId && firestoreDB) {
          firestoreDB.collection('user_data').doc(firestoreUserId).set({
             stickyNotes: stickyNotes,
             stickyNoteIdCounter: stickyNoteIdCounter
@@ -364,7 +365,7 @@ function deleteStickyNote(id) {
     }
 
     if (stickyNotes.length < initialLength) {
-        if (firestoreUserId) {
+        if (firestoreUserId && firestoreDB) {
              firestoreDB.collection('user_data').doc(firestoreUserId).set({
                 stickyNotes: stickyNotes
             }, { merge: true })
@@ -459,7 +460,8 @@ function loadLocalData() {
     }
 }
 
-// --- RENDERING & VIEW SWITCHING (unchanged) ---
+// --- RENDERING & VIEW SWITCHING (functions omitted for brevity, logic retained) ---
+
 function createTaskCard(task) {
     const li = document.createElement('li');
     li.className = 'task-item-card';
@@ -582,8 +584,6 @@ function switchView(viewName) {
     renderAllViews();
 }
 
-// --- STICKY WALL CORE LOGIC (unchanged) ---
-
 function createStickyNote(note) {
     const element = document.createElement('div');
     element.className = 'draggable sticky-note';
@@ -635,41 +635,6 @@ function createStickyNote(note) {
     return element;
 }
 
-// --- NEW: IMAGE ELEMENT CREATION (unchanged) ---
-function createImageElement(imageData) {
-    const element = document.createElement('img');
-    element.className = 'draggable image-element'; // Use draggable class
-    element.setAttribute('data-image-id', imageData.id);
-    element.src = imageData.src;
-    
-    // Default styles
-    element.style.position = 'absolute';
-    element.style.left = imageData.canvasX + 'px';
-    element.style.top = imageData.canvasY + 'px';
-    element.style.maxWidth = imageData.width ? imageData.width + 'px' : '200px';
-    element.style.height = 'auto'; // Maintain aspect ratio
-    // --- UPDATED: Remove shadow and square border ---
-    element.style.borderRadius = '0'; 
-    element.style.boxShadow = 'none'; 
-    // --------------------------------------------------
-    
-    // Add context menu/delete option (simple, for now)
-    element.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        window.showConfirm("Delete this image?", (result) => {
-            if (result) {
-                // Since images are not persisted via local storage in this scope, 
-                // we simply remove the DOM element.
-                element.remove();
-            }
-        });
-    });
-
-    if (corkboard) corkboard.appendChild(element);
-    return element;
-}
-
-
 function renderStickyWallNotes() {
     if (!corkboard) return;
 
@@ -703,56 +668,6 @@ function renderStickyWallNotes() {
     });
 }
 
-// --- NEW: DRAG AND DROP HANDLERS FOR IMAGE FILES (unchanged) ---
-
-function handleCorkboardDragOver(e) {
-    e.preventDefault(); // Necessary to allow dropping
-    e.dataTransfer.dropEffect = 'copy';
-}
-
-function handleCorkboardDrop(e) {
-    e.preventDefault();
-    
-    // Only proceed if the drop event contains files
-    if (e.dataTransfer.files.length === 0) return;
-
-    // Get the position of the drop relative to the corkboard
-    const corkboardRect = corkboard.getBoundingClientRect();
-    const dropX = e.clientX - corkboardRect.left + corkboard.scrollLeft;
-    const dropY = e.clientY - corkboardRect.top + corkboard.scrollTop;
-
-    for (const file of e.dataTransfer.files) {
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Calculate size: Max 200px width
-                    const maxWidth = 200;
-                    const width = Math.min(img.width, maxWidth);
-                    const height = (img.height / img.width) * width;
-
-                    const imageData = {
-                        // Using a string ID here since we aren't persisting them
-                        id: 'img-' + imageElementIdCounter++, 
-                        src: event.target.result, // Base64 data URL
-                        canvasX: dropX - (width / 2), // Center image at drop point
-                        canvasY: dropY - (height / 2),
-                        width: width,
-                        height: height
-                    };
-                    
-                    createImageElement(imageData);
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-    }
-}
-
-
-// --- Floating toolbar helpers (unchanged) ---
 function updateTextStyleButtonStates() {
     if (!activeNote || isDrawingOnNote) return;
 
@@ -852,7 +767,6 @@ function updateNoteToolbarPosition(note) {
     noteFloatingToolbar.style.left = left + 'px';
 }
 
-// --- Note drawing functions (unchanged) ---
 function setNoteDrawMode(enable) {
     isDrawingOnNote = enable;
     if (corkboard) corkboard.setAttribute('data-tool', enable ? 'note-draw' : 'select');
@@ -922,7 +836,6 @@ function endNoteDraw() {
     }
 }
 
-// --- NEW: STROKE HIT TESTING (unchanged) ---
 /**
  * Performs a simple bounding box hit test to find a draggable stroke under the cursor.
  * @param {number} x Canvas X coordinate.
@@ -955,7 +868,7 @@ function getStrokeUnderCursor(x, y) {
 }
 
 
-// --- MODIFIED: Mouse/Drag Handlers (Combined, logic for save/load moved to dedicated functions) ---
+// --- MODIFIED: Mouse/Drag Handlers (Combined) ---
 let isResizing = false;
 let activeHandle = null;
 let initialNoteWidth, initialNoteHeight, initialMouseX, initialMouseY, initialNoteX, initialNoteY;
@@ -1063,16 +976,9 @@ function startDragOrResize(e) {
             // Bring note to front
             document.querySelectorAll('.draggable').forEach(n => {
                 if(n.classList.contains('sticky-note')) n.style.zIndex = '50';
-                if(n.classList.contains('image-element')) n.style.zIndex = '50';
             });
             activeNote.style.zIndex = '100';
         } else {
-             // Bring image to front
-            document.querySelectorAll('.draggable').forEach(n => {
-                if(n.classList.contains('sticky-note')) n.style.zIndex = '50';
-                if(n.classList.contains('image-element')) n.style.zIndex = '50';
-            });
-            activeDraggable.style.zIndex = '60'; // Below note (100) but above drawings/tapes
             noteFloatingToolbar?.classList.add('hidden');
             activeNote = null;
         }
@@ -1284,7 +1190,7 @@ function dragOrResize(e) {
         if (currentStroke.tool === 'highlight') {
             ctx.globalCompositeOperation = 'multiply';
             ctx.globalAlpha = currentStroke.opacity;
-        } else if (currentTool === 'eraser') {
+        } else if (currentStroke.tool === 'eraser') {
             ctx.globalCompositeOperation = 'destination-out';
             ctx.globalAlpha = 1.0;
         } else {
@@ -1438,7 +1344,8 @@ function endDragOrResize(e) {
     }
 }
 
-// --- Toolbar Handlers (unchanged, but call modified save functions) ---
+// --- Toolbar Handlers (functions omitted for brevity, logic retained) ---
+
 function handleToolClick(e) {
     const btn = e.target.closest('.tool-btn');
     if (!btn) return;
@@ -1589,75 +1496,7 @@ function handleToolbarClicks(e) {
     }
 }
 
-// --- Canvas utilities (including washi pattern and ripped torn edge effect, unchanged) ---
-
-/**
- * Safe helper to create a pattern from a small pattern-canvas using the main ctx when available.
- * Returns a CanvasPattern or a fallback color string.
- */
-function createPatternSafe(patternCanvas) {
-    try {
-        const mainCtx = ctx || (canvas ? canvas.getContext('2d') : null);
-        if (!mainCtx) return '#fdfdfd';
-        return mainCtx.createPattern(patternCanvas, 'repeat');
-    } catch (e) {
-        return '#fdfdfd';
-    }
-}
-
-/**
- * Create a small repeating pattern canvas for washi.
- * Accepts an optional color (hex) that will be used for strokes/dots in the preview/tape.
- */
-function makePatternForWashi(patternName, color = '#b7b0ac') {
-    const patternCanvas = document.createElement('canvas');
-    patternCanvas.width = 20;
-    patternCanvas.height = 20;
-    const pctx = patternCanvas.getContext('2d');
-
-    // subtle paper base (off-white)
-    pctx.fillStyle = '#fbfaf6';
-    pctx.fillRect(0, 0, patternCanvas.width, patternCanvas.height);
-
-    if (patternName === 'diagonal') {
-        pctx.strokeStyle = color;
-        pctx.lineWidth = 2;
-        pctx.beginPath();
-        pctx.moveTo(0, patternCanvas.height);
-        pctx.lineTo(patternCanvas.width, 0);
-        pctx.stroke();
-    } else if (patternName === 'dots') {
-        pctx.fillStyle = color;
-        for (let y = 5; y < patternCanvas.height; y += 10) {
-            for (let x = 5; x < patternCanvas.width; x += 10) {
-                pctx.beginPath();
-                pctx.arc(x, y, 1.6, 0, Math.PI * 2);
-                pctx.fill();
-            }
-        }
-    } else if (patternName === 'grid') {
-        pctx.strokeStyle = color;
-        pctx.lineWidth = 1;
-        for (let i = 0; i < patternCanvas.width; i += 5) {
-            pctx.beginPath();
-            pctx.moveTo(i, 0);
-            pctx.lineTo(i, patternCanvas.height);
-            pctx.moveTo(0, i);
-            pctx.lineTo(patternCanvas.width, i);
-            pctx.stroke();
-        }
-    } else { // plain - leave base
-    }
-
-    return createPatternSafe(patternCanvas);
-}
-
-/**
- * Make a color "vibrant" by increasing lightness or saturation.
- * Simple HSL conversion to boost saturation and/or lightness quickly.
- */
 function makeColorVibrant(hex) {
-    // convert hex to HSL, boost saturation/lightness, return hex
     const rgb = hexToRgb(hex);
     if (!rgb) return hex;
     let [h, s, l] = rgbToHsl(rgb.r, rgb.g, rgb.b);
@@ -1667,7 +1506,7 @@ function makeColorVibrant(hex) {
     return rgbToHex(Math.round(rgb2.r), Math.round(rgb2.g), Math.round(rgb2.b));
 }
 
-/* Color helpers */
+/* Color helpers (omitted for brevity, retained logic) */
 function hexToRgb(hex) {
     if (!hex) return null;
     hex = hex.replace('#', '');
@@ -1716,10 +1555,68 @@ function hslToRgb(h, s, l) {
     return { r: r * 255, g: g * 255, b: b * 255 };
 }
 
-/**
- * Create ripped/torn mask on an offscreen context near the edges (destination-out).
- * Reused by drawWashiOnMain.
- */
+function createPatternSafe(patternCanvas) {
+    try {
+        const mainCtx = ctx || (canvas ? canvas.getContext('2d') : null);
+        if (!mainCtx) return '#fdfdfd';
+        return mainCtx.createPattern(patternCanvas, 'repeat');
+    } catch (e) {
+        return '#fdfdfd';
+    }
+}
+
+const WASHI_PATTERNS = ['diagonal', 'dots', 'grid', 'plain'];
+const WASHI_COLOR_SWATCHES = [
+    '#ff6b6b', // coral default
+    '#ff9472',
+    '#6bc7ff',
+    '#ffd56b',
+    '#7dff9b',
+    '#d38bff',
+    '#ffb3d1'
+];
+
+function makePatternForWashi(patternName, color = '#b7b0ac') {
+    const patternCanvas = document.createElement('canvas');
+    patternCanvas.width = 20;
+    patternCanvas.height = 20;
+    const pctx = patternCanvas.getContext('2d');
+
+    pctx.fillStyle = '#fbfaf6';
+    pctx.fillRect(0, 0, patternCanvas.width, patternCanvas.height);
+
+    if (patternName === 'diagonal') {
+        pctx.strokeStyle = color;
+        pctx.lineWidth = 2;
+        pctx.beginPath();
+        pctx.moveTo(0, patternCanvas.height);
+        pctx.lineTo(patternCanvas.width, 0);
+        pctx.stroke();
+    } else if (patternName === 'dots') {
+        pctx.fillStyle = color;
+        for (let y = 5; y < patternCanvas.height; y += 10) {
+            for (let x = 5; x < patternCanvas.width; x += 10) {
+                pctx.beginPath();
+                pctx.arc(x, y, 1.6, 0, Math.PI * 2);
+                pctx.fill();
+            }
+        }
+    } else if (patternName === 'grid') {
+        pctx.strokeStyle = color;
+        pctx.lineWidth = 1;
+        for (let i = 0; i < patternCanvas.width; i += 5) {
+            pctx.beginPath();
+            pctx.moveTo(i, 0);
+            pctx.lineTo(i, patternCanvas.height);
+            pctx.moveTo(0, i);
+            pctx.lineTo(patternCanvas.width, i);
+            pctx.stroke();
+        }
+    } else { }
+
+    return createPatternSafe(patternCanvas);
+}
+
 function cutRippedEdge(offCtx, cornerX, cornerY, angle, maxLength) {
     offCtx.save();
     offCtx.translate(cornerX, cornerY);
@@ -1750,10 +1647,6 @@ function cutRippedEdge(offCtx, cornerX, cornerY, angle, maxLength) {
     offCtx.restore();
 }
 
-/**
- * Draws a washi tape segment with pattern + vibrant overlay + ripped ends.
- * Uses offscreen canvas to create proper transparency and texture.
- */
 function drawWashiOnMain(stroke) {
     if (!ctx || !canvas) return;
 
@@ -1773,13 +1666,10 @@ function drawWashiOnMain(stroke) {
     off.height = offH;
     const offCtx = off.getContext('2d');
 
-    // Move origin to padding, mid-line
     offCtx.translate(padding, offH / 2);
 
-    // create pattern using the stroke color for previews and final tape
     const pattern = makePatternForWashi(stroke.pattern || 'diagonal', stroke.color);
 
-    // 1) fill a thick line with pattern
     offCtx.save();
     offCtx.beginPath();
     offCtx.lineCap = 'butt';
@@ -1791,23 +1681,20 @@ function drawWashiOnMain(stroke) {
     offCtx.stroke();
     offCtx.restore();
 
-    // 2) vibrant base overlay (solid color at 100% opacity to make it visible)
     offCtx.save();
-    offCtx.globalAlpha = 1.0; // 100% opacity per request
+    offCtx.globalAlpha = 1.0; 
     offCtx.strokeStyle = stroke.color || '#ff6b6b';
-    offCtx.lineWidth = stroke.width * 0.6; // smaller base to keep pattern visible
+    offCtx.lineWidth = stroke.width * 0.6;
     offCtx.beginPath();
     offCtx.moveTo(0, 0);
     offCtx.lineTo(length, 0);
     offCtx.stroke();
     offCtx.restore();
 
-    // 3) create ripped edges by cutting shapes at start & end using destination-out
     const tearLen = Math.min(28, Math.max(12, stroke.width * 1.6));
     cutRippedEdge(offCtx, 0, 0, Math.PI, tearLen);
     cutRippedEdge(offCtx, length, 0, 0, tearLen);
 
-    // 4) subtle shadow under tape to lift it visually
     offCtx.save();
     offCtx.globalCompositeOperation = 'source-over';
     offCtx.fillStyle = 'rgba(0,0,0,0.06)';
@@ -1816,7 +1703,6 @@ function drawWashiOnMain(stroke) {
     offCtx.fill();
     offCtx.restore();
 
-    // 5) draw offscreen onto main canvas with rotation & position
     ctx.save();
     ctx.translate(sx, sy);
     ctx.rotate(angle);
@@ -1824,12 +1710,10 @@ function drawWashiOnMain(stroke) {
     ctx.restore();
 }
 
-// --- Main canvas redraw (handles washi strokes too) ---
 function redrawAllStrokes() {
     if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw non-washi strokes first
     strokes.forEach(stroke => {
         if (stroke.tool === 'washi-tape') return;
         ctx.beginPath();
@@ -1863,7 +1747,6 @@ function redrawAllStrokes() {
         ctx.stroke();
     });
 
-    // Then draw washi strokes on top
     for (let i = 0; i < strokes.length; i++) {
         const stroke = strokes[i];
         if (stroke.tool === 'washi-tape') {
@@ -1875,25 +1758,12 @@ function redrawAllStrokes() {
     ctx.globalAlpha = 1;
 }
 
-// --- Floating Washi Toolbar (Dynamically generated, unchanged) ---
-// Minimalist UI: small rounded container, soft shadow, small previews & color swatches
-const WASHI_PATTERNS = ['diagonal', 'dots', 'grid', 'plain'];
-const WASHI_COLOR_SWATCHES = [
-    '#ff6b6b', // coral default
-    '#ff9472',
-    '#6bc7ff',
-    '#ffd56b',
-    '#7dff9b',
-    '#d38bff',
-    '#ffb3d1'
-];
-
+// Floating Washi Toolbar (functions omitted for brevity, logic retained)
 function createFloatingWashiToolbar() {
     if (floatingWashiToolbar) return floatingWashiToolbar;
 
     const wrapper = document.createElement('div');
     wrapper.id = 'floating-washi-toolbar';
-    // base styles (minimalist)
     Object.assign(wrapper.style, {
         position: 'absolute',
         zIndex: 1000,
@@ -1904,14 +1774,13 @@ function createFloatingWashiToolbar() {
         borderRadius: '12px',
         boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
         alignItems: 'center',
-        transform: 'translate(-50%, -120%)', // place above the start point by default
+        transform: 'translate(-50%, -120%)',
         pointerEvents: 'auto',
         userSelect: 'none',
         fontFamily: 'Inter, sans-serif',
         fontSize: '12px'
     });
 
-    // Patterns group (small previews)
     const patternsGroup = document.createElement('div');
     patternsGroup.style.display = 'flex';
     patternsGroup.style.gap = '6px';
@@ -1935,7 +1804,6 @@ function createFloatingWashiToolbar() {
             justifyContent: 'center'
         });
 
-        // create small preview canvas
         const preview = document.createElement('canvas');
         preview.width = 28;
         preview.height = 20;
@@ -1944,12 +1812,9 @@ function createFloatingWashiToolbar() {
         preview.style.borderRadius = '4px';
         preview.style.display = 'block';
 
-        // draw preview using currentWashiColor
         const pctx = preview.getContext('2d');
-        // fill base
         pctx.fillStyle = '#fbfaf6';
         pctx.fillRect(0,0,preview.width,preview.height);
-        // pattern (use a small scale, pass current color)
         drawPatternPreviewOnCtx(pctx, patt, currentWashiColor, preview.width, preview.height);
 
         btn.appendChild(preview);
@@ -1957,15 +1822,12 @@ function createFloatingWashiToolbar() {
 
         btn.addEventListener('click', (ev) => {
             currentWashiPattern = patt;
-            // mark active visually
             patternsGroup.querySelectorAll('.washi-pattern-btn').forEach(b => b.style.outline = 'none');
             btn.style.outline = '2px solid rgba(106,64,225,0.12)';
             btn.style.borderRadius = '6px';
-            // update live previews (if needed) - no extra action required
         });
     });
 
-    // Colors group (small circular swatches)
     const colorsGroup = document.createElement('div');
     colorsGroup.style.display = 'flex';
     colorsGroup.style.gap = '6px';
@@ -1987,7 +1849,6 @@ function createFloatingWashiToolbar() {
 
         sw.addEventListener('click', () => {
             currentWashiColor = col;
-            // update all pattern previews to reflect new color
             patternsGroup.querySelectorAll('canvas').forEach(canvasEl => {
                 const patt = canvasEl.parentElement.getAttribute('data-pattern');
                 const pctx = canvasEl.getContext('2d');
@@ -1996,14 +1857,12 @@ function createFloatingWashiToolbar() {
                 pctx.fillRect(0,0,canvasEl.width,canvasEl.height);
                 drawPatternPreviewOnCtx(pctx, patt, currentWashiColor, canvasEl.width, canvasEl.height);
             });
-            // highlight selected swatch
             colorsGroup.querySelectorAll('.washi-color-swatch').forEach(b => b.style.boxShadow = 'none');
             sw.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.04)';
         });
         colorsGroup.appendChild(sw);
     });
 
-    // small close button
     const closeBtn = document.createElement('button');
     closeBtn.title = 'Close';
     closeBtn.innerHTML = '&times;';
@@ -2017,32 +1876,26 @@ function createFloatingWashiToolbar() {
     });
     closeBtn.addEventListener('click', () => {
         hideFloatingWashiToolbar();
-        // switch tool back to select visually
         document.querySelector('.tool-btn[data-tool="select"]')?.classList.add('active');
         document.querySelectorAll('.tool-btn[data-tool]').forEach(b => { if (b.getAttribute('data-tool') === 'washi-tape') b.classList.remove('active'); });
         currentTool = 'select';
         if (corkboard) corkboard.setAttribute('data-tool', 'select');
     });
 
-    // assemble
     wrapper.appendChild(patternsGroup);
-    // divider
     const divider = document.createElement('div');
     Object.assign(divider.style, { width: '1px', height: '28px', background: 'rgba(0,0,0,0.04)', borderRadius: '2px' });
     wrapper.appendChild(divider);
     wrapper.appendChild(colorsGroup);
     wrapper.appendChild(closeBtn);
 
-    // insert into corkboard for proper absolute positioning relative to corkboard
     if (corkboard) corkboard.appendChild(wrapper);
     floatingWashiToolbar = wrapper;
-    // initially hidden
     wrapper.style.display = 'none';
     return wrapper;
 }
 
 function drawPatternPreviewOnCtx(pctx, patternName, colorHex, w, h) {
-    // tiny preview drawing logic (not using createPattern to keep preview crisp)
     pctx.fillStyle = '#fbfaf6';
     pctx.fillRect(0,0,w,h);
     pctx.save();
@@ -2078,7 +1931,6 @@ function drawPatternPreviewOnCtx(pctx, patternName, colorHex, w, h) {
             pctx.stroke();
         }
     } else {
-        // plain: small colored rect
         pctx.fillStyle = colorHex;
         pctx.globalAlpha = 0.12;
         pctx.fillRect(0, 0, w, h);
@@ -2086,13 +1938,8 @@ function drawPatternPreviewOnCtx(pctx, patternName, colorHex, w, h) {
     pctx.restore();
 }
 
-/**
- * Position and display the floating washi toolbar at corkboard coordinates (x,y).
- * The toolbar is positioned relative to corkboard; it will stay at the tape starting point.
- */
 function showFloatingWashiToolbarAt(x, y) {
     const toolbar = createFloatingWashiToolbar();
-    // update previews to current color/pattern
     toolbar.querySelectorAll('.washi-pattern-btn canvas').forEach(canvasEl => {
         const patt = canvasEl.parentElement.getAttribute('data-pattern');
         const pctx = canvasEl.getContext('2d');
@@ -2101,60 +1948,38 @@ function showFloatingWashiToolbarAt(x, y) {
         pctx.fillRect(0,0,canvasEl.width,canvasEl.height);
         drawPatternPreviewOnCtx(pctx, patt, currentWashiColor, canvasEl.width, canvasEl.height);
     });
-    // highlight the active pattern button
     toolbar.querySelectorAll('.washi-pattern-btn').forEach(b => {
         b.style.outline = (b.getAttribute('data-pattern') === currentWashiPattern) ? '2px solid rgba(106,64,225,0.12)' : 'none';
     });
-    // highlight the selected color
     toolbar.querySelectorAll('.washi-color-swatch').forEach(sw => {
         sw.style.boxShadow = (sw.getAttribute('data-color') === currentWashiColor) ? '0 0 0 3px rgba(0,0,0,0.04)' : 'none';
     });
 
-    // position (ensure within corkboard bounds)
-    const corkRect = corkboard.getBoundingClientRect();
-    const localLeft = x + corkRect.left - corkboard.scrollLeft;
-    const localTop = y + corkRect.top - corkboard.scrollTop;
-
-    // Position toolbar using absolute coordinates relative to corkboard
-    const toolbarWidth = 250; // approx - wrapper width may vary; we center using translate
     toolbar.style.left = (x) + 'px';
     toolbar.style.top = (y) + 'px';
     toolbar.style.display = 'flex';
 }
 
-/**
- * Hide & remove the floating washi toolbar
- */
 function hideFloatingWashiToolbar() {
     if (!floatingWashiToolbar) return;
     floatingWashiToolbar.style.display = 'none';
 }
 
-// --- Sticky Wall Initialization ---
 function initializeStickyWall() {
     if (!canvas || !corkboard) return;
 
     function fitCanvasToBoard() {
-        // size the canvas to corkboard scrollable area
         canvas.width = corkboard.scrollWidth;
         canvas.height = corkboard.scrollHeight;
-        // The redraw is handled by the async data load, but we keep it here for window resize handling
         if (ctx) redrawAllStrokes(); 
     }
     fitCanvasToBoard();
     window.addEventListener('resize', fitCanvasToBoard);
 
     ctx = canvas.getContext('2d');
-    // REMOVED: Initial redrawAllStrokes() call, relying on loadUserAppData/loadLocalData
-
     renderStickyWallNotes();
-    
-    // --- NEW: Add Drag and Drop listeners for images ---
-    corkboard.addEventListener('dragover', handleCorkboardDragOver);
-    corkboard.addEventListener('drop', handleCorkboardDrop);
 }
 
-// --- Drag and Drop (Matrix View, unchanged) ---
 let draggedTaskId = null;
 let draggedElement = null;
 
@@ -2190,10 +2015,8 @@ function handleDrop(e) {
 
         if (task && task.quadrant !== newQuadrantId) {
             task.quadrant = newQuadrantId;
-            // Since task is part of the global 'tasks' array, the next saveTask or toggleCompletion
-            // will automatically update the Firestore document via the save functions defined earlier.
-            // For now, we manually trigger a save since dropping doesn't call saveTask directly.
-            if (firestoreUserId) {
+            // Persistence logic here
+            if (firestoreUserId && firestoreDB) {
                  firestoreDB.collection('user_data').doc(firestoreUserId).set({
                     tasks: tasks
                 }, { merge: true });
@@ -2220,7 +2043,49 @@ function setupMatrixDragAndDrop() {
     });
 }
 
-// --- DOMContentLoaded: Wire up events and load state (MODIFIED) ---
+// --- NEW: Password Reset Functionality ---
+function handlePasswordReset() {
+    const emailInput = document.getElementById("login-email");
+    const email = emailInput.value.trim();
+    const loginError = document.getElementById("login-error");
+    const resetSuccess = document.getElementById("reset-success-message");
+    
+    loginError.classList.add("hidden");
+    resetSuccess.classList.add("hidden");
+
+    if (!email) {
+        loginError.textContent = "Please enter your email address above to reset your password.";
+        loginError.classList.remove("hidden");
+        return;
+    }
+
+    // Check for Firebase Auth availability
+    if (!window.firebase || !window.firebase.auth) {
+        loginError.textContent = "Firebase Authentication is not initialized or available.";
+        loginError.classList.remove("hidden");
+        return;
+    }
+
+    firebase.auth().sendPasswordResetEmail(email)
+        .then(() => {
+            resetSuccess.textContent = `Password reset email sent to ${email}. Check your inbox.`;
+            resetSuccess.classList.remove("hidden");
+            // Clear password field only
+            document.getElementById("login-password").value = '';
+        })
+        .catch((error) => {
+            let errorMessage = error.message;
+            if (error.code === 'auth/user-not-found') {
+                errorMessage = `No user found with email: ${email}. Please check the address.`;
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = "The email address is not valid.";
+            }
+            loginError.textContent = `Error: ${errorMessage}`;
+            loginError.classList.remove("hidden");
+        });
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.quadrant-add-btn').forEach(button => {
         button.addEventListener('click', () => {
@@ -2228,6 +2093,9 @@ document.addEventListener('DOMContentLoaded', () => {
             openModal(null, quadrant);
         });
     });
+
+    // Initial data loading moved to auth listener for authenticated users
+    loadLocalData();
 
     if (canvas && corkboard) initializeStickyWall();
 
@@ -2281,7 +2149,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Sidebar Toggle and Navigation Logic (unchanged) ---
     const sidebar = document.querySelector('.sidebar');
     const menuToggle = document.querySelector('.menu-toggle');
     const overlay = document.querySelector('.overlay');
@@ -2291,7 +2158,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const isCollapsing = !sidebar.classList.contains('collapsed');
             sidebar.classList.toggle('collapsed');
             
-            // Show/hide overlay only on mobile
             if (window.innerWidth <= 768) {
                 if (isCollapsing) {
                     overlay.classList.remove('active');
@@ -2305,32 +2171,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (overlay && sidebar) {
         overlay.addEventListener('click', () => {
             sidebar.classList.add('collapsed');
-            overlay.classList.remove('active'); // Hide overlay when clicked
+            overlay.classList.remove('active');
         });
     }
 
-    // Also, close sidebar when a view is clicked on mobile
     document.querySelectorAll('.sidebar .task-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.getAttribute('data-view');
             if (view) {
                 switchView(view);
-                // Auto-close sidebar on mobile after selection
                 if (window.innerWidth <= 768) {
                     sidebar.classList.add('collapsed');
-                    overlay.classList.remove('active'); // Hide overlay
+                    overlay.classList.remove('active');
                 }
             }
         });
     });
 
-    // Check initial state on load
     if (window.innerWidth <= 768) {
         sidebar.classList.add('collapsed');
     }
-    // --- END UPDATED SECTION ---
 
-    // MODIFIED: Add touch events
     document.addEventListener('mousedown', startDragOrResize);
     document.addEventListener('touchstart', startDragOrResize, { passive: false });
     
@@ -2339,7 +2200,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('mouseup', endDragOrResize);
     document.addEventListener('touchend', endDragOrResize);
-    document.addEventListener('touchcancel', endDragOrResize); // Added for robustness
+    document.addEventListener('touchcancel', endDragOrResize);
 
     document.addEventListener('dragend', () => {
         document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
@@ -2388,26 +2249,28 @@ document.addEventListener('DOMContentLoaded', () => {
         redrawAllStrokes();
         saveStrokes();
     });
+    
+    // --- NEW WIRING: Forgot Password Link ---
+    document.getElementById('forgot-password-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        handlePasswordReset();
+    });
 
-    // initial creation of the floating washi toolbar (hidden)
+
     createFloatingWashiToolbar();
 
-    // MODIFIED SIGN OUT BUTTON LOGIC (now integrated with Firebase)
     document.getElementById('sign-out-btn')?.addEventListener('click', () => {
         window.showConfirm("Are you sure you want to sign out? This will clear all local data.", (result) => {
             if (result) {
-                // This will trigger the auth state listener
                 firebase.auth().signOut()
                     .then(() => {
                         console.log('User signed out.');
-                        // Clear all local data upon sign-out
                         localStorage.removeItem('tasks');
                         localStorage.removeItem('taskIdCounter');
                         localStorage.removeItem('stickyNotes');
                         localStorage.removeItem('stickyNoteIdCounter');
                         localStorage.removeItem('strokes');
                         
-                        // Reload the page to apply the empty state
                         location.reload();
                     })
                     .catch((error) => {
@@ -2418,8 +2281,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // NOTE: Initial data load and rendering moved to the Firebase Auth listener.
-    // The current view setting is still done here.
     switchView('matrix');
 });
 
@@ -2432,12 +2293,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // NOTE: These must be your actual credentials from the Firebase Console.
 const firebaseConfig = {
   apiKey: "AIzaSyDLZFz9BuBMvtZ3I_yDa3QnIYK6vzs23Ow",
-  authDomain: "justine-may.github.io",
+  authDomain: "my-to-do-app-e7d97.firebaseapp.com",
   projectId: "my-to-do-app-e7d97",
   storageBucket: "my-to-do-app-e7d97.firebasestorage.app",
   messagingSenderId: "641151971887",
-  appId: "1:641151971887:web:599d672ef0af7ec16cccda"
+  appId: "1:641151971887:web:599d672ef0af7ec16cccda",
+  measurementId: "G-VDGN6K50LJ"
 };
+
 
 // 🟢 STEP 2: Initialize Firebase App and get Auth/DB references
 try {
@@ -2454,7 +2317,7 @@ try {
 const auth = firebase.auth();
 
 document.addEventListener("DOMContentLoaded", () => {
-  // --- Account Modal Element Selectors (unchanged) ---
+  // --- Account Modal Element Selectors ---
   const accountBtn = document.getElementById("account-btn");
   const signOutBtn = document.getElementById("sign-out-btn");
   const accountModal = document.getElementById("account-modal");
@@ -2479,7 +2342,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Google Button
   const googleLoginBtn = document.getElementById("google-login-btn");
 
-  // --- Modal Visibility (unchanged) ---
+  // --- Modal Visibility ---
   if (accountBtn) {
     accountBtn.addEventListener("click", () => {
       // Reset forms
@@ -2487,6 +2350,7 @@ document.addEventListener("DOMContentLoaded", () => {
       signupForm.reset();
       loginError.classList.add("hidden");
       signupError.classList.add("hidden");
+      document.getElementById("reset-success-message")?.classList.add("hidden"); // Hide reset message
       // Show login form by default
       loginFormContainer.classList.remove("hidden");
       signupFormContainer.classList.add("hidden");
@@ -2510,7 +2374,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Form Toggling (unchanged) ---
+  // --- Form Toggling ---
   if (showSignupFormLink) {
     showSignupFormLink.addEventListener("click", (e) => {
       e.preventDefault();
@@ -2527,7 +2391,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Firebase Auth Handlers (unchanged, persistence logic is in onAuthStateChanged) ---
+  // --- Firebase Auth Handlers ---
 
   // 1. Sign Up
   if (signupForm) {
@@ -2560,6 +2424,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const password = document.getElementById("login-password").value;
 
       loginError.classList.add("hidden"); // Hide old errors
+      document.getElementById("reset-success-message")?.classList.add("hidden");
 
       auth.signInWithEmailAndPassword(email, password)
         .then((userCredential) => {
