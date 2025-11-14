@@ -2432,7 +2432,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // NOTE: These must be your actual credentials from the Firebase Console.
 const firebaseConfig = {
   apiKey: "AIzaSyDLZFz9BuBMvtZ3I_yDa3QnIYK6vzs23Ow",
-  authDomain: "github.com/Justine-May",
+  authDomain: "justine-may.github.io",
   projectId: "my-to-do-app-e7d97",
   storageBucket: "my-to-do-app-e7d97.firebasestorage.app",
   messagingSenderId: "641151971887",
