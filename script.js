@@ -71,16 +71,15 @@ let tasks = [];
 let taskIdCounter = 1;
 let currentView = 'matrix'; // Default to matrix view
 
-// Firestore references (if used)
-let firestoreDB = null;
-let firestoreAuth = null;
-let firestoreUserId = null;
-let firestoreAppId = null;
+// --- FIREBASE STATE ADDITIONS ---
+let firestoreDB = null; // Reference to the Firestore database
+let firestoreUserId = null; // UID of the currently logged-in user
+// --- END FIREBASE STATE ADDITIONS ---
 
 // Dedicated state for sticky notes (DECOUPLED)
 let stickyNotes = [];
 let stickyNoteIdCounter = 1;
-let imageElementIdCounter = 1; // NEW: Counter for dropped images
+let imageElementIdCounter = 1; // Counter for dropped images
 
 // --- CONSTANTS ---
 const STICKY_NOTE_BG_COLORS = {
@@ -182,11 +181,21 @@ let activeNote = null; // Currently selected sticky note DOM element
 const USERNAME = '@User';
 
 // --- STROKE MANAGEMENT FUNCTIONS (New Section for Persistence) ---
+
+// MODIFIED: Save strokes to Firestore or localStorage
 function saveStrokes() {
-    localStorage.setItem('strokes', JSON.stringify(strokes));
+    if (firestoreUserId) {
+        firestoreDB.collection('user_data').doc(firestoreUserId).set({
+            strokes: strokes,
+            // Only tracking the strokes array is necessary for restore
+        }, { merge: true })
+        .catch(error => console.error("Error saving strokes to Firestore: ", error));
+    } else {
+        localStorage.setItem('strokes', JSON.stringify(strokes));
+    }
 }
 
-// --- MODIFIED: Ensure old strokes get bounds for dragging ---
+// MODIFIED: Load strokes from LocalStorage (Fallback)
 function loadStrokes() {
     const savedStrokes = localStorage.getItem('strokes');
     if (savedStrokes) {
@@ -211,11 +220,14 @@ function loadStrokes() {
             }
             return stroke;
         });
+    } else {
+        strokes = []; // Ensure it's cleared if nothing is found
     }
 }
 
 
 // --- TASK MANAGEMENT FUNCTIONS (Core) ---
+// MODIFIED: Save tasks to Firestore or localStorage
 function saveTask(taskData) {
     let task;
     if (taskData.id) {
@@ -240,36 +252,66 @@ function saveTask(taskData) {
         };
         tasks.push(task);
     }
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-    localStorage.setItem('taskIdCounter', taskIdCounter);
+
+    if (firestoreUserId) {
+        firestoreDB.collection('user_data').doc(firestoreUserId).set({
+            tasks: tasks,
+            taskIdCounter: taskIdCounter
+        }, { merge: true })
+        .catch(error => console.error("Error saving tasks to Firestore: ", error));
+    } else {
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+        localStorage.setItem('taskIdCounter', taskIdCounter);
+    }
+    
     renderAllViews();
     return task;
 }
 
+// MODIFIED: Delete task (updates Firestore/localStorage)
 function deleteTask(id) {
     const initialLength = tasks.length;
     tasks = tasks.filter(t => t.id !== id);
 
     if (tasks.length < initialLength) {
-        localStorage.setItem('tasks', JSON.stringify(tasks));
-        localStorage.setItem('taskIdCounter', taskIdCounter);
+        if (firestoreUserId) {
+             firestoreDB.collection('user_data').doc(firestoreUserId).set({
+                tasks: tasks
+            }, { merge: true })
+            .catch(error => console.error("Error deleting task in Firestore: ", error));
+        } else {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+        
         renderAllViews();
         return true;
     }
     return false;
 }
 
+// MODIFIED: Toggle completion (updates Firestore/localStorage)
 function toggleTaskCompletion(id, isCompleted) {
     const task = tasks.find(t => t.id === id);
     if (task) {
         task.completed = isCompleted;
         task.completedDate = isCompleted ? new Date().toISOString().split('T')[0] : null;
-        localStorage.setItem('tasks', JSON.stringify(tasks));
+
+        if (firestoreUserId) {
+            // Find the index and update the array in Firestore
+            firestoreDB.collection('user_data').doc(firestoreUserId).set({
+                tasks: tasks
+            }, { merge: true })
+            .catch(error => console.error("Error updating task completion in Firestore: ", error));
+        } else {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+        
         renderAllViews();
     }
 }
 
 // --- STICKY NOTE MANAGEMENT FUNCTIONS (Decoupled Core) ---
+// MODIFIED: Save notes to Firestore or localStorage
 function saveStickyNote(noteData) {
     let note;
     if (noteData.id) {
@@ -294,12 +336,22 @@ function saveStickyNote(noteData) {
         stickyNotes.push(note);
     }
 
-    localStorage.setItem('stickyNotes', JSON.stringify(stickyNotes));
-    localStorage.setItem('stickyNoteIdCounter', stickyNoteIdCounter);
+    if (firestoreUserId) {
+         firestoreDB.collection('user_data').doc(firestoreUserId).set({
+            stickyNotes: stickyNotes,
+            stickyNoteIdCounter: stickyNoteIdCounter
+        }, { merge: true })
+        .catch(error => console.error("Error saving notes to Firestore: ", error));
+    } else {
+        localStorage.setItem('stickyNotes', JSON.stringify(stickyNotes));
+        localStorage.setItem('stickyNoteIdCounter', stickyNoteIdCounter);
+    }
+    
     renderStickyWallNotes();
     return note;
 }
 
+// MODIFIED: Delete note (updates Firestore/localStorage)
 function deleteStickyNote(id) {
     const initialLength = stickyNotes.length;
     stickyNotes = stickyNotes.filter(n => n.id !== id);
@@ -312,13 +364,102 @@ function deleteStickyNote(id) {
     }
 
     if (stickyNotes.length < initialLength) {
-        localStorage.setItem('stickyNotes', JSON.stringify(stickyNotes));
+        if (firestoreUserId) {
+             firestoreDB.collection('user_data').doc(firestoreUserId).set({
+                stickyNotes: stickyNotes
+            }, { merge: true })
+            .catch(error => console.error("Error deleting note in Firestore: ", error));
+        } else {
+            localStorage.setItem('stickyNotes', JSON.stringify(stickyNotes));
+        }
+        
         return true;
     }
     return false;
 }
 
-// --- RENDERING & VIEW SWITCHING (Matrix/All Tasks logic omitted for brevity, but kept intact) ---
+// --- NEW: FIRESTORE DATA LOADING ---
+
+/**
+ * Loads all user data (tasks, notes, strokes) from Firestore
+ * for the currently logged-in user.
+ * @param {string} uid The Firebase User ID.
+ */
+async function loadUserAppData(uid) {
+    if (!firestoreDB) return;
+
+    try {
+        const docRef = firestoreDB.collection('user_data').doc(uid);
+        const doc = await docRef.get();
+
+        if (doc.exists) {
+            const data = doc.data();
+
+            // 1. Tasks
+            tasks = data.tasks || [];
+            taskIdCounter = data.taskIdCounter || (tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1);
+
+            // 2. Sticky Notes
+            stickyNotes = data.stickyNotes || [];
+            stickyNoteIdCounter = data.stickyNoteIdCounter || (stickyNotes.length > 0 ? Math.max(...stickyNotes.map(n => n.id)) + 1 : 1);
+
+            // 3. Strokes (Drawings/Washi Tape)
+            strokes = data.strokes || [];
+            
+        } else {
+            // Document does not exist, initialize with empty arrays and counters
+            tasks = [];
+            stickyNotes = [];
+            strokes = [];
+            taskIdCounter = 1;
+            stickyNoteIdCounter = 1;
+        }
+        
+        // Always render/redraw after loading
+        renderAllViews();
+        
+        // **CRITICAL FIX: Ensure canvas context is ready and force redraw of strokes**
+        if (canvas) {
+            ctx = canvas.getContext('2d');
+            redrawAllStrokes();
+        }
+
+    } catch (error) {
+        console.error("Error loading user data from Firestore: ", error);
+        loadLocalData();
+    }
+}
+
+/**
+ * Loads all application data from localStorage (used for unauthenticated sessions or fallback).
+ */
+function loadLocalData() {
+    const storedTasks = localStorage.getItem('tasks');
+    if (storedTasks) {
+        tasks = JSON.parse(storedTasks);
+        taskIdCounter = parseInt(localStorage.getItem('taskIdCounter')) || (tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1);
+    } else {
+        tasks = [];
+        taskIdCounter = 1;
+    }
+
+    const storedNotes = localStorage.getItem('stickyNotes');
+    if (storedNotes) {
+        stickyNotes = JSON.parse(storedNotes);
+        stickyNoteIdCounter = parseInt(localStorage.getItem('stickyNoteIdCounter')) || (stickyNotes.length > 0 ? Math.max(...stickyNotes.map(n => n.id)) + 1 : 1);
+    } else {
+        stickyNotes = [];
+        stickyNoteIdCounter = 1;
+    }
+    
+    loadStrokes(); // loads strokes from localStorage
+    if (canvas) {
+        ctx = canvas.getContext('2d');
+        redrawAllStrokes(); // Redraw for local data
+    }
+}
+
+// --- RENDERING & VIEW SWITCHING (unchanged) ---
 function createTaskCard(task) {
     const li = document.createElement('li');
     li.className = 'task-item-card';
@@ -441,7 +582,7 @@ function switchView(viewName) {
     renderAllViews();
 }
 
-// --- STICKY WALL CORE LOGIC ---
+// --- STICKY WALL CORE LOGIC (unchanged) ---
 
 function createStickyNote(note) {
     const element = document.createElement('div');
@@ -494,7 +635,7 @@ function createStickyNote(note) {
     return element;
 }
 
-// --- NEW: IMAGE ELEMENT CREATION ---
+// --- NEW: IMAGE ELEMENT CREATION (unchanged) ---
 function createImageElement(imageData) {
     const element = document.createElement('img');
     element.className = 'draggable image-element'; // Use draggable class
@@ -562,7 +703,7 @@ function renderStickyWallNotes() {
     });
 }
 
-// --- NEW: DRAG AND DROP HANDLERS FOR IMAGE FILES ---
+// --- NEW: DRAG AND DROP HANDLERS FOR IMAGE FILES (unchanged) ---
 
 function handleCorkboardDragOver(e) {
     e.preventDefault(); // Necessary to allow dropping
@@ -711,7 +852,7 @@ function updateNoteToolbarPosition(note) {
     noteFloatingToolbar.style.left = left + 'px';
 }
 
-// --- Note drawing functions ---
+// --- Note drawing functions (unchanged) ---
 function setNoteDrawMode(enable) {
     isDrawingOnNote = enable;
     if (corkboard) corkboard.setAttribute('data-tool', enable ? 'note-draw' : 'select');
@@ -781,7 +922,7 @@ function endNoteDraw() {
     }
 }
 
-// --- NEW: STROKE HIT TESTING ---
+// --- NEW: STROKE HIT TESTING (unchanged) ---
 /**
  * Performs a simple bounding box hit test to find a draggable stroke under the cursor.
  * @param {number} x Canvas X coordinate.
@@ -814,7 +955,7 @@ function getStrokeUnderCursor(x, y) {
 }
 
 
-// --- MODIFIED: Mouse/Drag Handlers (Combined) ---
+// --- MODIFIED: Mouse/Drag Handlers (Combined, logic for save/load moved to dedicated functions) ---
 let isResizing = false;
 let activeHandle = null;
 let initialNoteWidth, initialNoteHeight, initialMouseX, initialMouseY, initialNoteX, initialNoteY;
@@ -1143,7 +1284,7 @@ function dragOrResize(e) {
         if (currentStroke.tool === 'highlight') {
             ctx.globalCompositeOperation = 'multiply';
             ctx.globalAlpha = currentStroke.opacity;
-        } else if (currentStroke.tool === 'eraser') {
+        } else if (currentTool === 'eraser') {
             ctx.globalCompositeOperation = 'destination-out';
             ctx.globalAlpha = 1.0;
         } else {
@@ -1207,7 +1348,7 @@ function endDragOrResize(e) {
             const noteCanvas = activeNote.querySelector('.note-canvas');
             if (noteCanvas) note.noteCanvasData = noteCanvas.toDataURL();
 
-            saveStickyNote(note);
+            saveStickyNote(note); // Save persistence
         }
     }
 
@@ -1224,7 +1365,7 @@ function endDragOrResize(e) {
                 if (note) {
                     note.canvasX = parseInt(activeDraggable.style.left) || 0;
                     note.canvasY = parseInt(activeDraggable.style.top) || 0;
-                    saveStickyNote(note);
+                    saveStickyNote(note); // Save persistence
                 }
                 if (activeNote) {
                     updateNoteToolbarState();
@@ -1297,7 +1438,7 @@ function endDragOrResize(e) {
     }
 }
 
-// --- Toolbar Handlers ---
+// --- Toolbar Handlers (unchanged, but call modified save functions) ---
 function handleToolClick(e) {
     const btn = e.target.closest('.tool-btn');
     if (!btn) return;
@@ -1448,7 +1589,7 @@ function handleToolbarClicks(e) {
     }
 }
 
-// --- Canvas utilities (including washi pattern and ripped torn edge effect) ---
+// --- Canvas utilities (including washi pattern and ripped torn edge effect, unchanged) ---
 
 /**
  * Safe helper to create a pattern from a small pattern-canvas using the main ctx when available.
@@ -1734,7 +1875,7 @@ function redrawAllStrokes() {
     ctx.globalAlpha = 1;
 }
 
-// --- Floating Washi Toolbar (Dynamically generated) ---
+// --- Floating Washi Toolbar (Dynamically generated, unchanged) ---
 // Minimalist UI: small rounded container, soft shadow, small previews & color swatches
 const WASHI_PATTERNS = ['diagonal', 'dots', 'grid', 'plain'];
 const WASHI_COLOR_SWATCHES = [
@@ -1997,13 +2138,15 @@ function initializeStickyWall() {
         // size the canvas to corkboard scrollable area
         canvas.width = corkboard.scrollWidth;
         canvas.height = corkboard.scrollHeight;
-        redrawAllStrokes();
+        // The redraw is handled by the async data load, but we keep it here for window resize handling
+        if (ctx) redrawAllStrokes(); 
     }
     fitCanvasToBoard();
     window.addEventListener('resize', fitCanvasToBoard);
 
     ctx = canvas.getContext('2d');
-    redrawAllStrokes();
+    // REMOVED: Initial redrawAllStrokes() call, relying on loadUserAppData/loadLocalData
+
     renderStickyWallNotes();
     
     // --- NEW: Add Drag and Drop listeners for images ---
@@ -2011,7 +2154,7 @@ function initializeStickyWall() {
     corkboard.addEventListener('drop', handleCorkboardDrop);
 }
 
-// --- Drag and Drop (Matrix View) ---
+// --- Drag and Drop (Matrix View, unchanged) ---
 let draggedTaskId = null;
 let draggedElement = null;
 
@@ -2047,7 +2190,17 @@ function handleDrop(e) {
 
         if (task && task.quadrant !== newQuadrantId) {
             task.quadrant = newQuadrantId;
-            localStorage.setItem('tasks', JSON.stringify(tasks));
+            // Since task is part of the global 'tasks' array, the next saveTask or toggleCompletion
+            // will automatically update the Firestore document via the save functions defined earlier.
+            // For now, we manually trigger a save since dropping doesn't call saveTask directly.
+            if (firestoreUserId) {
+                 firestoreDB.collection('user_data').doc(firestoreUserId).set({
+                    tasks: tasks
+                }, { merge: true });
+            } else {
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+            }
+            
             renderMatrixView();
         }
     }
@@ -2067,7 +2220,7 @@ function setupMatrixDragAndDrop() {
     });
 }
 
-// --- DOMContentLoaded: Wire up events and load state ---
+// --- DOMContentLoaded: Wire up events and load state (MODIFIED) ---
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.quadrant-add-btn').forEach(button => {
         button.addEventListener('click', () => {
@@ -2075,21 +2228,6 @@ document.addEventListener('DOMContentLoaded', () => {
             openModal(null, quadrant);
         });
     });
-
-    const storedTasks = localStorage.getItem('tasks');
-    if (storedTasks) {
-        tasks = JSON.parse(storedTasks);
-        taskIdCounter = parseInt(localStorage.getItem('taskIdCounter')) || (tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1);
-    }
-
-    const storedNotes = localStorage.getItem('stickyNotes');
-    if (storedNotes) {
-        stickyNotes = JSON.parse(storedNotes);
-        stickyNoteIdCounter = parseInt(localStorage.getItem('stickyNoteIdCounter')) || (stickyNotes.length > 0 ? Math.max(...stickyNotes.map(n => n.id)) + 1 : 1);
-    }
-    
-    // --- MODIFIED: Load persisted strokes
-    loadStrokes();
 
     if (canvas && corkboard) initializeStickyWall();
 
@@ -2143,7 +2281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- UPDATED: Sidebar Toggle and Navigation Logic ---
+    // --- Sidebar Toggle and Navigation Logic (unchanged) ---
     const sidebar = document.querySelector('.sidebar');
     const menuToggle = document.querySelector('.menu-toggle');
     const overlay = document.querySelector('.overlay');
@@ -2280,28 +2418,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    renderAllViews();
+    // NOTE: Initial data load and rendering moved to the Firebase Auth listener.
+    // The current view setting is still done here.
     switchView('matrix');
 });
 
 
 // ####################################################################
-// #################### NEW FIREBASE AUTH LOGIC #####################
+// #################### FIREBASE AUTH & DB LOGIC #####################
 // ####################################################################
 
 // 🟢 STEP 1: PASTE YOUR FIREBASE CONFIG HERE
+// NOTE: These must be your actual credentials from the Firebase Console.
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDLZFz9BuBMvtZ3I_yDa3QnIYK6vzs23Ow",
+  authDomain: "my-to-do-app-e7d97.firebaseapp.com",
+  projectId: "my-to-do-app-e7d97",
+  storageBucket: "my-to-do-app-e7d97.firebasestorage.app",
+  messagingSenderId: "641151971887",
+  appId: "1:641151971887:web:599d672ef0af7ec16cccda"
 };
 
-// 🟢 STEP 2: This code will initialize Firebase
+// 🟢 STEP 2: Initialize Firebase App and get Auth/DB references
 try {
-  firebase.initializeApp(firebaseConfig);
+  const firebaseApp = firebase.initializeApp(firebaseConfig);
+  // Get Firestore DB reference here
+  firestoreDB = firebase.firestore();
 } catch (e) {
   if (!/firebase.*already exists/.test(e.message)) {
     console.error('Firebase initialization error:', e.stack);
@@ -2312,7 +2454,7 @@ try {
 const auth = firebase.auth();
 
 document.addEventListener("DOMContentLoaded", () => {
-  // --- Account Modal Element Selectors ---
+  // --- Account Modal Element Selectors (unchanged) ---
   const accountBtn = document.getElementById("account-btn");
   const signOutBtn = document.getElementById("sign-out-btn");
   const accountModal = document.getElementById("account-modal");
@@ -2337,7 +2479,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Google Button
   const googleLoginBtn = document.getElementById("google-login-btn");
 
-  // --- Modal Visibility ---
+  // --- Modal Visibility (unchanged) ---
   if (accountBtn) {
     accountBtn.addEventListener("click", () => {
       // Reset forms
@@ -2368,7 +2510,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Form Toggling ---
+  // --- Form Toggling (unchanged) ---
   if (showSignupFormLink) {
     showSignupFormLink.addEventListener("click", (e) => {
       e.preventDefault();
@@ -2385,7 +2527,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Firebase Auth Handlers ---
+  // --- Firebase Auth Handlers (unchanged, persistence logic is in onAuthStateChanged) ---
 
   // 1. Sign Up
   if (signupForm) {
@@ -2398,7 +2540,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       auth.createUserWithEmailAndPassword(email, password)
         .then((userCredential) => {
-          // Signed in
+          // Signed in, onAuthStateChanged will handle data loading
           console.log("User created:", userCredential.user);
           alert("Account created successfully! You are now logged in.");
           closeAuthModal();
@@ -2421,7 +2563,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       auth.signInWithEmailAndPassword(email, password)
         .then((userCredential) => {
-          // Signed in
+          // Signed in, onAuthStateChanged will handle data loading
           console.log("User logged in:", userCredential.user);
           closeAuthModal();
         })
@@ -2439,6 +2581,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       auth.signInWithPopup(provider)
         .then((result) => {
+          // Signed in, onAuthStateChanged will handle data loading
           console.log("Google sign-in successful:", result.user);
           closeAuthModal();
         })
@@ -2449,38 +2592,39 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 4. Auth State Listener (Manages UI)
+  // 4. Auth State Listener (Manages UI and Data Loading)
   auth.onAuthStateChanged((user) => {
     if (user) {
       // User is signed in
+      firestoreUserId = user.uid; // Set the global user ID
+      
       console.log("Auth state changed: Logged in as", user.email);
       if (accountBtn) {
-        // Change "Sign In" button to show user's email (or a generic message)
         accountBtn.innerHTML = `<i class="fas fa-user-check"></i> ${user.email}`;
-        accountBtn.style.pointerEvents = "none"; // Disable clicking it
+        accountBtn.style.pointerEvents = "none";
       }
       if (signOutBtn) {
-        signOutBtn.style.display = "block"; // Show the "Sign Out" button
+        signOutBtn.style.display = "block";
       }
+
+      // 🟢 ACTION: Load user data from Firestore
+      loadUserAppData(user.uid); 
+      
     } else {
       // User is signed out
-      console.log("Auth state changed: Logged out");
+      firestoreUserId = null; // Clear the global user ID
+
+      console.log("Auth state changed: Logged out, loading local data.");
       if (accountBtn) {
         accountBtn.innerHTML = `<i class="fas fa-user-circle"></i> Sign In / Create Account`;
-        accountBtn.style.pointerEvents = "auto"; // Re-enable clicking it
+        accountBtn.style.pointerEvents = "auto";
       }
       if (signOutBtn) {
-        signOutBtn.style.display = "none"; // Hide the "Sign Out" button
+        signOutBtn.style.display = "none";
       }
       
-      // IMPORTANT: When a user logs out, we clear the local-only data.
-      // The sign-out button itself already handles this, but this is a good
-      // place to ensure the UI is clean.
-      // We will reload all data from scratch (which is currently empty)
-      tasks = [];
-      stickyNotes = [];
-      strokes = [];
-      renderAllViews();
+      // 🟢 ACTION: Load data from localStorage (unauthenticated session)
+      loadLocalData();
     }
   });
 
