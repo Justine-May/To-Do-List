@@ -24,7 +24,7 @@
 
       <div class="search-box">
         <i class="fas fa-search"></i>
-        <input type="text" placeholder="Search" />
+        <input type="text" id="search-input" placeholder="Search" />
       </div>
 
       <nav class="menu-sections">
@@ -50,7 +50,7 @@
       <div class="overlay"></div>
 
       <div id="matrix-container" class="view-container active">
-        <h1 class="matrix-title">Eisenhower Matrix</h1>
+        <h1 class="matrix-title">  </h1>
         <div class="matrix-grid relative">
           <span class="matrix-axis-label absolute top-2/4 -left-10 transform -translate-y-1/2 rotate-270">IMPORTANT</span>
           <span class="matrix-axis-label absolute bottom-2/4 -left-10 transform translate-y-1/2 rotate-270">NOT IMPORTANT</span>
@@ -58,24 +58,71 @@
           <span class="matrix-axis-label absolute top-0 right-1/4 transform -translate-x-1/2 mt-2">NOT URGENT</span>
 
           <div class="quadrant quadrant-do" data-quadrant="do">
-            <h3><i class="fas fa-bolt"></i> Do Now</h3>
+            <div class="quadrant-header-wrapper">
+                <h3><i class="fas fa-bolt"></i> DO NOW</h3>
+            </div>
+            <div class="quadrant-controls">
+                <button class="control-btn view-btn"><i class="fas fa-list-ul"></i> List</button>
+                <div class="control-actions">
+                    <button class="control-btn edit-filter-btn" data-quadrant-filter="do"><i class="fas fa-sliders-h"></i> Edit filters</button>
+                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="do">
+                        <i class="fas fa-arrows-alt-v"></i><span class="sort-direction-indicator"></span>
+                    </button>
+                    <button class="control-btn add-new-btn new-page-link" data-quadrant="do"><i class="fas fa-plus"></i> New page</button>
+                </div>
+            </div>
             <ul class="task-list" id="do-list"></ul>
-            <button class="quadrant-add-btn" data-quadrant="do"><i class="fas fa-plus"></i> Add Task</button>
           </div>
+          
           <div class="quadrant quadrant-schedule" data-quadrant="schedule">
-            <h3><i class="fas fa-calendar-alt"></i> Schedule</h3>
+            <div class="quadrant-header-wrapper">
+                <h3><i class="fas fa-calendar-alt"></i> SCHEDULE</h3>
+            </div>
+            <div class="quadrant-controls">
+                <button class="control-btn view-btn"><i class="fas fa-list-ul"></i> List</button>
+                <div class="control-actions">
+                    <button class="control-btn edit-filter-btn" data-quadrant-filter="schedule"><i class="fas fa-sliders-h"></i> Edit filters</button>
+                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="schedule">
+                        <i class="fas fa-arrows-alt-v"></i><span class="sort-direction-indicator"></span>
+                    </button>
+                    <button class="control-btn add-new-btn new-page-link" data-quadrant="schedule"><i class="fas fa-plus"></i> New page</button>
+                </div>
+            </div>
             <ul class="task-list" id="schedule-list"></ul>
-            <button class="quadrant-add-btn" data-quadrant="schedule"><i class="fas fa-plus"></i> Add Task</button>
           </div>
+          
           <div class="quadrant quadrant-delegate" data-quadrant="delegate">
-            <h3><i class="fas fa-user-plus"></i> Delegate</h3>
+            <div class="quadrant-header-wrapper">
+                <h3><i class="fas fa-user-plus"></i> DELEGATE</h3>
+            </div>
+            <div class="quadrant-controls">
+                <button class="control-btn view-btn"><i class="fas fa-list-ul"></i> List</button>
+                <div class="control-actions">
+                    <button class="control-btn edit-filter-btn" data-quadrant-filter="delegate"><i class="fas fa-sliders-h"></i> Edit filters</button>
+                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="delegate">
+                        <i class="fas fa-arrows-alt-v"></i><span class="sort-direction-indicator"></span>
+                    </button>
+                    <button class="control-btn add-new-btn new-page-link" data-quadrant="delegate"><i class="fas fa-plus"></i> New page</button>
+                </div>
+            </div>
             <ul class="task-list" id="delegate-list"></ul>
-            <button class="quadrant-add-btn" data-quadrant="delegate"><i class="fas fa-plus"></i> Add Task</button>
           </div>
+          
           <div class="quadrant quadrant-eliminate" data-quadrant="eliminate">
-            <h3><i class="fas fa-trash-alt"></i> Eliminate</h3>
+            <div class="quadrant-header-wrapper">
+                <h3><i class="fas fa-trash-alt"></i> ELIMINATE</h3>
+            </div>
+            <div class="quadrant-controls">
+                <button class="control-btn view-btn"><i class="fas fa-list-ul"></i> List</button>
+                <div class="control-actions">
+                    <button class="control-btn edit-filter-btn" data-quadrant-filter="eliminate"><i class="fas fa-sliders-h"></i> Edit filters</button>
+                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="eliminate">
+                        <i class="fas fa-arrows-alt-v"></i><span class="sort-direction-indicator"></span>
+                    </button>
+                    <button class="control-btn add-new-btn new-page-link" data-quadrant="eliminate"><i class="fas fa-plus"></i> New page</button>
+                </div>
+            </div>
             <ul class="task-list" id="eliminate-list"></ul>
-            <button class="quadrant-add-btn" data-quadrant="eliminate"><i class="fas fa-plus"></i> Add Task</button>
           </div>
         </div>
       </div>
@@ -200,6 +247,14 @@
               </div>
             </div>
             <div class="form-group">
+              <label for="task-status"><i class="fas fa-tasks"></i> Status</label>
+              <select id="task-status" required>
+                <option value="not_started">Not Started</option>
+                <option value="in_progress">In Progress</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
               <textarea id="task-description" placeholder="Add details..."></textarea>
             </div>
@@ -210,68 +265,117 @@
           </form>
         </div>
       </div>
+      
+      <div id="filter-modal" class="modal-overlay">
+        <div class="modal-content">
+          <button class="close-button" onclick="closeFilterModal()">&times;</button>
+          <h2 id="filter-modal-title">Filters for [Quadrant Name]</h2>
+          <form id="filter-form">
+            <input type="hidden" id="current-filter-quadrant" value="">
+            
+            <div class="form-group">
+                <label class="font-bold mb-2">Status</label>
+                <div class="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="filter-status-inprogress" name="status" value="inprogress" class="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
+                        <span><i class="fas fa-circle-notch mr-2 text-blue-500"></i> In Progress / Started</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="filter-status-notstarted" name="status" value="notstarted" class="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
+                        <span><i class="fas fa-clock mr-2 text-gray-500"></i> Not Started (Tasks not yet done)</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="filter-status-done" name="status" value="done" class="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
+                        <span><i class="fas fa-check-circle mr-2 text-green-500"></i> Done / Completed</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group border-t pt-4 mt-4">
+                <label for="filter-date-start" class="font-bold mb-2 block">Date Created Range</label>
+                <div class="form-row">
+                    <div class="form-group half-width">
+                        <label for="filter-date-start"><i class="fas fa-calendar-day"></i> Start Date</label>
+                        <input type="date" id="filter-date-start" name="date-start">
+                    </div>
+                    <div class="form-group half-width">
+                        <label for="filter-date-end"><i class="fas fa-calendar-check"></i> End Date</label>
+                        <input type="date" id="filter-date-end" name="date-end">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn delete-btn" id="clear-filters-btn"><i class="fas fa-times-circle"></i> Clear Filters</button>
+                <button type="submit" class="btn save-btn" id="apply-filters-btn"><i class="fas fa-filter"></i> Apply Filters</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+
+      <div id="custom-confirm-dialog" class="custom-confirm-overlay hidden">
+        <div class="custom-confirm-box">
+          <p id="confirm-message">Are you sure?</p>
+          <div class="actions">
+            <button id="confirm-cancel-btn">Cancel</button>
+            <button id="confirm-delete-btn">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="account-modal" class="modal-overlay">
+        <div class="account-modal-content">
+          <button class="close-button" id="close-account-modal">&times;</button>
+
+          <div id="login-form-container">
+            <h2 class="text-2xl font-bold mb-4 text-center text-purple-700">Welcome Back!</h2>
+            <p class="text-center text-gray-600 mb-6">Sign in to sync your workspace.</p>
+            <form id="login-form" class="flex flex-col gap-3">
+              <input type="email" id="login-email" placeholder="Email" required class="account-input" />
+              <input type="password" id="login-password" placeholder="Password" required class="account-input" />
+              
+              <a href="#" id="forgot-password-link" class="text-purple-700 text-sm hover:underline self-end -mt-2">Forgot password?</a>
+              
+              <p id="login-error" class="text-red-500 text-sm hidden"></p>
+              <p id="reset-success-message" class="text-green-500 text-sm hidden"></p>
+              
+              <button type="submit" class="btn save-btn w-full">Sign In</button>
+            </form>
+            <p class="text-center text-sm text-gray-600 mt-4">
+              Don't have an account? <a href="#" id="show-signup-form" class="text-purple-700 hover:underline">Create one</a>
+            </p>
+          </div>
+
+          <div id="signup-form-container" class="hidden">
+            <h2 class="text-2xl font-bold mb-4 text-center text-purple-700">Create Account</h2>
+            <p class="text-center text-gray-600 mb-6">Get started for free.</p>
+            <form id="signup-form" class="flex flex-col gap-3">
+              <input type="email" id="signup-email" placeholder="Email" required class="account-input" />
+              <input type="password" id="signup-password" placeholder="Password (min. 6 characters)" required class="account-input" />
+              <p id="signup-error" class="text-red-500 text-sm hidden"></p>
+              <button type="submit" class="btn save-btn w-full">Create Account</button>
+            </form>
+            <p class="text-center text-sm text-gray-600 mt-4">
+              Already have an account? <a href="#" id="show-login-form-link" class="text-purple-700 hover:underline">Sign in</a>
+            </p>
+          </div>
+
+          <div class="flex items-center my-4">
+            <hr class="flex-grow border-gray-300" />
+            <span class="px-3 text-gray-400 text-sm">or</span>
+            <hr class="flex-grow border-gray-300" />
+          </div>
+
+          <button id="google-login-btn" class="google-btn">
+            <i class="fab fa-google mr-2"></i> Sign in with Google
+          </button>
+        </div>
+      </div>
+
     </main>
   </div>
   
-  <div id="custom-confirm-dialog" class="custom-confirm-overlay hidden">
-    <div class="custom-confirm-box">
-      <p id="confirm-message">Are you sure?</p>
-      <div class="actions">
-        <button id="confirm-cancel-btn">Cancel</button>
-        <button id="confirm-delete-btn">Delete</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="account-modal" class="modal-overlay">
-    <div class="account-modal-content">
-      <button class="close-button" id="close-account-modal">&times;</button>
-
-      <div id="login-form-container">
-        <h2 class="text-2xl font-bold mb-4 text-center text-purple-700">Welcome Back!</h2>
-        <p class="text-center text-gray-600 mb-6">Sign in to sync your workspace.</p>
-        <form id="login-form" class="flex flex-col gap-3">
-          <input type="email" id="login-email" placeholder="Email" required class="account-input" />
-          <input type="password" id="login-password" placeholder="Password" required class="account-input" />
-          
-          <a href="#" id="forgot-password-link" class="text-purple-700 text-sm hover:underline self-end -mt-2">Forgot password?</a>
-          
-          <p id="login-error" class="text-red-500 text-sm hidden">Error message</p>
-          <p id="reset-success-message" class="text-green-500 text-sm hidden"></p>
-          
-          <button type="submit" class="btn save-btn w-full">Sign In</button>
-        </form>
-        <p class="text-center text-sm text-gray-600 mt-4">
-          Don't have an account? <a href="#" id="show-signup-form" class="text-purple-700 hover:underline">Create one</a>
-        </p>
-      </div>
-
-      <div id="signup-form-container" class="hidden">
-        <h2 class="text-2xl font-bold mb-4 text-center text-purple-700">Create Account</h2>
-        <p class="text-center text-gray-600 mb-6">Get started for free.</p>
-        <form id="signup-form" class="flex flex-col gap-3">
-          <input type="email" id="signup-email" placeholder="Email" required class="account-input" />
-          <input type="password" id="signup-password" placeholder="Password (min. 6 characters)" required class="account-input" />
-          <p id="signup-error" class="text-red-500 text-sm hidden">Error message</p>
-          <button type="submit" class="btn save-btn w-full">Create Account</button>
-        </form>
-        <p class="text-center text-sm text-gray-600 mt-4">
-          Already have an account? <a href="#" id="show-login-form-link" class="text-purple-700 hover:underline">Sign in</a>
-        </p>
-      </div>
-
-      <div class="flex items-center my-4">
-        <hr class="flex-grow border-gray-300" />
-        <span class="px-3 text-gray-400 text-sm">or</span>
-        <hr class="flex-grow border-gray-300" />
-      </div>
-
-      <button id="google-login-btn" class="google-btn">
-        <i class="fab fa-google mr-2"></i> Sign in with Google
-      </button>
-    </div>
-  </div>
-
   <script src="script.js"></script>
 </body>
 </html>

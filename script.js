@@ -71,6 +71,39 @@ let tasks = [];
 let taskIdCounter = 1;
 let currentView = 'matrix'; // Default to matrix view
 
+// State for quadrant-specific sort direction (using 'id' as proxy for creation date)
+let creationSortDirection = {
+    do: 'desc', // Default to 'Newer' (descending ID)
+    schedule: 'desc',
+    delegate: 'desc',
+    eliminate: 'desc'
+};
+
+// NEW: State for quadrant-specific filtering
+let quadrantFilters = {
+    // Default to showing tasks that are Not Started and In Progress, but NOT Done.
+    do: { 
+        status: { inprogress: true, done: false, notstarted: true }, 
+        dateStart: '', 
+        dateEnd: '' 
+    },
+    schedule: { 
+        status: { inprogress: true, done: false, notstarted: true }, 
+        dateStart: '', 
+        dateEnd: '' 
+    },
+    delegate: { 
+        status: { inprogress: true, done: false, notstarted: true },
+        dateStart: '', 
+        dateEnd: '' 
+    },
+    eliminate: { 
+        status: { inprogress: true, done: false, notstarted: true },
+        dateStart: '', 
+        dateEnd: '' 
+    }
+};
+
 // --- FIREBASE STATE ADDITIONS ---
 let firestoreDB = null; // Reference to the Firestore database
 let firestoreUserId = null; // UID of the currently logged-in user
@@ -123,6 +156,14 @@ const matrixContainer = document.getElementById('matrix-container');
 const allTasksContainer = document.getElementById('all-tasks-container');
 const allTasksList = document.getElementById('all-tasks-list');
 const newTaskButton = document.getElementById('new-task-btn');
+
+// NEW: Filter Modal Selectors
+const filterModal = document.getElementById('filter-modal');
+const filterForm = document.getElementById('filter-form');
+const currentFilterQuadrantInput = document.getElementById('current-filter-quadrant');
+const filterModalTitle = document.getElementById('filter-modal-title');
+const clearFiltersBtn = document.getElementById('clear-filters-btn');
+
 
 // Menu item selectors
 const matrixMenuItem = document.getElementById('matrix-menu-item');
@@ -229,6 +270,8 @@ function loadStrokes() {
 // MODIFIED: Save tasks to Firestore or localStorage
 function saveTask(taskData) {
     let task;
+    const newStatus = taskData.status || 'not_started';
+
     if (taskData.id) {
         task = tasks.find(t => t.id === taskData.id);
         if (task) {
@@ -237,19 +280,27 @@ function saveTask(taskData) {
                 description: taskData.description,
                 dueDate: taskData.dueDate,
                 quadrant: taskData.quadrant || 'do',
-                completed: taskData.completed !== undefined ? taskData.completed : task.completed,
+                status: newStatus, // NEW: Use status from form
+                // Derived properties for UI compatibility
+                completed: newStatus === 'done', 
+                completedDate: newStatus === 'done' ? new Date().toISOString().split('T')[0] : null,
                 subtasks: taskData.subtasks || task.subtasks
             });
         }
     } else {
+        const now = new Date().getTime(); 
         task = {
             id: taskIdCounter++,
             title: taskData.title,
             description: taskData.description,
             dueDate: taskData.dueDate,
             quadrant: taskData.quadrant || 'do',
-            completed: false,
+            status: newStatus, // NEW: Use status
+            // Derived properties for UI compatibility
+            completed: newStatus === 'done', 
+            completedDate: newStatus === 'done' ? new Date().toISOString().split('T')[0] : null,
             subtasks: taskData.subtasks || [],
+            creationTime: now,
         };
         tasks.push(task);
     }
@@ -290,15 +341,16 @@ function deleteTask(id) {
     return false;
 }
 
-// MODIFIED: Toggle completion (updates Firestore/localStorage)
-function toggleTaskCompletion(id, isCompleted) {
+// MODIFIED: Toggle completion (updates status field based on checkbox)
+function toggleTaskCompletion(id, isChecked) {
     const task = tasks.find(t => t.id === id);
     if (task) {
-        task.completed = isCompleted;
-        task.completedDate = isCompleted ? new Date().toISOString().split('T')[0] : null;
+        // Set status based on checkbox: checked -> done, unchecked -> not_started
+        task.status = isChecked ? 'done' : 'not_started'; 
+        task.completed = isChecked;
+        task.completedDate = isChecked ? new Date().toISOString().split('T')[0] : null;
 
         if (firestoreUserId && firestoreDB) {
-            // Find the index and update the array in Firestore
             firestoreDB.collection('user_data').doc(firestoreUserId).set({
                 tasks: tasks
             }, { merge: true })
@@ -312,7 +364,6 @@ function toggleTaskCompletion(id, isCompleted) {
 }
 
 // --- STICKY NOTE MANAGEMENT FUNCTIONS (Decoupled Core) ---
-// MODIFIED: Save notes to Firestore or localStorage
 function saveStickyNote(noteData) {
     let note;
     if (noteData.id) {
@@ -396,8 +447,27 @@ async function loadUserAppData(uid) {
         if (doc.exists) {
             const data = doc.data();
 
-            // 1. Tasks
-            tasks = data.tasks || [];
+            // 1. Tasks - Ensure creationTime and status are set upon load
+            tasks = (data.tasks || []).map(task => {
+                if (!task.creationTime) {
+                    task.creationTime = task.id ? (new Date().getTime() - (taskIdCounter - task.id) * 3600000) : new Date().getTime();
+                }
+                
+                // NEW: Migrate old 'completed' boolean to 'status' string if 'status' is missing
+                if (!task.status) {
+                    if (task.completed === true) {
+                        task.status = 'done';
+                    } else if (task.completed === false) {
+                        task.status = 'not_started';
+                    } else {
+                        task.status = 'not_started';
+                    }
+                }
+                // Also ensure the derived 'completed' property is correct for old UI elements
+                task.completed = task.status === 'done';
+
+                return task;
+            });
             taskIdCounter = data.taskIdCounter || (tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1);
 
             // 2. Sticky Notes
@@ -419,7 +489,6 @@ async function loadUserAppData(uid) {
         // Always render/redraw after loading
         renderAllViews();
         
-        // **CRITICAL FIX: Ensure canvas context is ready and force redraw of strokes**
         if (canvas) {
             ctx = canvas.getContext('2d');
             redrawAllStrokes();
@@ -437,7 +506,25 @@ async function loadUserAppData(uid) {
 function loadLocalData() {
     const storedTasks = localStorage.getItem('tasks');
     if (storedTasks) {
-        tasks = JSON.parse(storedTasks);
+        tasks = JSON.parse(storedTasks).map(task => {
+            if (!task.creationTime) {
+                task.creationTime = task.id ? (new Date().getTime() - (taskIdCounter - task.id) * 3600000) : new Date().getTime();
+            }
+            
+            // NEW: Migrate old 'completed' boolean to 'status' string if 'status' is missing
+            if (!task.status) {
+                if (task.completed === true) {
+                    task.status = 'done';
+                } else if (task.completed === false) {
+                    task.status = 'not_started';
+                } else {
+                    task.status = 'not_started';
+                }
+            }
+            task.completed = task.status === 'done';
+            
+            return task;
+        });
         taskIdCounter = parseInt(localStorage.getItem('taskIdCounter')) || (tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1);
     } else {
         tasks = [];
@@ -460,21 +547,25 @@ function loadLocalData() {
     }
 }
 
-// --- RENDERING & VIEW SWITCHING (functions omitted for brevity, logic retained) ---
+// --- RENDERING & VIEW SWITCHING (functions modified for creation date sort and filtering) ---
 
 function createTaskCard(task) {
     const li = document.createElement('li');
     li.className = 'task-item-card';
     li.setAttribute('data-task-id', task.id);
-    if (task.completed) {
+    
+    // MODIFIED: Use status to determine visual completion state
+    const isDone = task.status === 'done'; 
+    if (isDone) {
         li.classList.add('completed');
     }
 
     li.setAttribute('draggable', 'true');
     li.addEventListener('dragstart', handleDragStart);
 
+    // Checkbox state reflects 'done' status
     li.innerHTML = `
-        <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
+        <input type="checkbox" class="task-checkbox" ${isDone ? 'checked' : ''}>
         <span class="task-title-text">${task.title}</span>
     `;
 
@@ -491,6 +582,66 @@ function createTaskCard(task) {
     return li;
 }
 
+// NEW: Filter logic function (Updated to use three statuses)
+function applyQuadrantFilters(quadrantId, tasksToFilter) {
+    const filters = quadrantFilters[quadrantId];
+    if (!filters) return tasksToFilter;
+
+    let filteredTasks = tasksToFilter.filter(task => {
+        // --- 1. Status Filter ---
+        let statusMatch = false;
+
+        if (filters.status.done && task.status === 'done') {
+            statusMatch = true;
+        }
+
+        if (filters.status.inprogress && task.status === 'in_progress') {
+            statusMatch = true;
+        }
+
+        if (filters.status.notstarted && task.status === 'not_started') {
+            statusMatch = true;
+        }
+
+        // Check if any status filter is selected (which determines if we should filter status at all)
+        const isStatusFilterSelected = filters.status.done || filters.status.inprogress || filters.status.notstarted;
+
+        // If no status is selected, no task matches (i.e., filter out everything)
+        if (!isStatusFilterSelected) {
+             return false; 
+        }
+        
+        if (!statusMatch) return false;
+
+
+        // --- 2. Creation Date Filter ---
+        if (filters.dateStart || filters.dateEnd) {
+            const creationDateMs = task.creationTime || 0; 
+
+            if (filters.dateStart) {
+                const startDate = new Date(filters.dateStart);
+                startDate.setHours(0, 0, 0, 0); 
+                if (creationDateMs < startDate.getTime()) {
+                    return false;
+                }
+            }
+
+            if (filters.dateEnd) {
+                const endDate = new Date(filters.dateEnd);
+                endDate.setHours(23, 59, 59, 999); 
+                if (creationDateMs > endDate.getTime()) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    });
+
+    return filteredTasks;
+}
+
+
 function renderMatrixView() {
     quadrants.forEach(quadrantEl => {
         const quadrantId = quadrantEl.getAttribute('data-quadrant');
@@ -498,13 +649,45 @@ function renderMatrixView() {
         if (!listEl) return;
         listEl.innerHTML = '';
 
-        const quadrantTasks = tasks
-            .filter(t => t.quadrant === quadrantId)
-            .sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
+        // -1 for newest first (desc), 1 for oldest first (asc)
+        const sortDirection = creationSortDirection[quadrantId] === 'desc' ? -1 : 1; 
+
+        let quadrantTasks = tasks.filter(t => t.quadrant === quadrantId);
+
+        // --- APPLY FILTERS ---
+        quadrantTasks = applyQuadrantFilters(quadrantId, quadrantTasks);
+        
+        // --- APPLY SORT ---
+        // Sort by 'creationTime' or 'id' as fallback
+        quadrantTasks.sort((a, b) => {
+            const timeA = a.creationTime || a.id;
+            const timeB = b.creationTime || b.id;
+            return (timeB - timeA) * sortDirection; 
+        });
+
 
         quadrantTasks.forEach(task => {
             listEl.appendChild(createTaskCard(task));
         });
+        
+        // Update sort indicator
+        const indicator = quadrantEl.querySelector('.sort-direction-indicator');
+        if (indicator) {
+            indicator.textContent = creationSortDirection[quadrantId] === 'desc' ? 'Newer' : 'Older';
+        }
+
+        // Indicate if filters are active
+        const filterBtn = quadrantEl.querySelector(`.edit-filter-btn[data-quadrant-filter="${quadrantId}"]`);
+        const filters = quadrantFilters[quadrantId];
+        // Check if any filter is different from the default state
+        const isDateFilterActive = filters.dateStart || filters.dateEnd;
+        // The default status filter is { inprogress: true, done: false, notstarted: true }
+        const isDefaultStatusFilter = filters.status.inprogress === true && filters.status.done === false && filters.status.notstarted === true;
+        
+        if(filterBtn) {
+            // Filter is active if date filter is set OR the status filter is NOT the default
+            filterBtn.classList.toggle('active-filter', isDateFilterActive || !isDefaultStatusFilter);
+        }
     });
 
     setupMatrixDragAndDrop();
@@ -513,6 +696,8 @@ function renderMatrixView() {
 function renderAllTasksView() {
     if (!allTasksList) return;
     allTasksList.innerHTML = '';
+    
+    // Default sort for all tasks list remains by Due Date
     const sortedTasks = tasks.slice().sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
 
     sortedTasks.forEach(task => {
@@ -536,6 +721,10 @@ function openModal(taskId = null, quadrant = 'do') {
 
     const initialQuadrant = task ? task.quadrant : quadrant;
     document.getElementById('task-priority').value = initialQuadrant;
+    
+    // NEW: Load Status
+    const initialStatus = task ? task.status : 'not_started';
+    document.getElementById('task-status').value = initialStatus;
 
     if (task) {
         document.getElementById('task-title').value = task.title;
@@ -584,6 +773,82 @@ function switchView(viewName) {
     renderAllViews();
 }
 
+
+// --- NEW FILTER MODAL FUNCTIONS ---
+
+function openFilterModal(quadrantId) {
+    if (!filterModal) return;
+    const filters = quadrantFilters[quadrantId];
+
+    // 1. Set title and hidden field
+    filterModalTitle.textContent = `Filters for ${quadrantId.charAt(0).toUpperCase() + quadrantId.slice(1)}`;
+    currentFilterQuadrantInput.value = quadrantId;
+
+    // 2. Load status filters
+    document.getElementById('filter-status-done').checked = filters.status.done;
+    document.getElementById('filter-status-inprogress').checked = filters.status.inprogress;
+    document.getElementById('filter-status-notstarted').checked = filters.status.notstarted;
+
+
+    // 3. Load date filters
+    document.getElementById('filter-date-start').value = filters.dateStart;
+    document.getElementById('filter-date-end').value = filters.dateEnd;
+
+    // 4. Show modal
+    filterModal.style.display = 'flex';
+}
+
+function closeFilterModal() {
+    if (filterModal) filterModal.style.display = 'none';
+}
+
+function handleFilterFormSubmit(e) {
+    e.preventDefault();
+    const quadrantId = currentFilterQuadrantInput.value;
+    
+    if (!quadrantId) {
+        closeFilterModal();
+        return;
+    }
+
+    // Capture new filter state
+    quadrantFilters[quadrantId] = {
+        status: {
+            done: document.getElementById('filter-status-done').checked,
+            inprogress: document.getElementById('filter-status-inprogress').checked,
+            notstarted: document.getElementById('filter-status-notstarted').checked
+        },
+        dateStart: document.getElementById('filter-date-start').value,
+        dateEnd: document.getElementById('filter-date-end').value
+    };
+
+    closeFilterModal();
+    renderMatrixView(); 
+}
+
+function handleClearFilters() {
+    const quadrantId = currentFilterQuadrantInput.value;
+    if (!quadrantId) return;
+
+    // Reset filters to a state that shows all tasks regardless of status or date
+    quadrantFilters[quadrantId] = {
+        status: { inprogress: true, done: true, notstarted: true },
+        dateStart: '', 
+        dateEnd: '' 
+    };
+    
+    // Visually reset the form to show all three status boxes checked
+    document.getElementById('filter-status-done').checked = true;
+    document.getElementById('filter-status-inprogress').checked = true;
+    document.getElementById('filter-status-notstarted').checked = true;
+    document.getElementById('filter-date-start').value = '';
+    document.getElementById('filter-date-end').value = '';
+
+    closeFilterModal();
+    renderMatrixView();
+}
+
+// --- Sticky Wall Functions (Retained) ---
 function createStickyNote(note) {
     const element = document.createElement('div');
     element.className = 'draggable sticky-note';
@@ -997,7 +1262,7 @@ function startDragOrResize(e) {
         washiStartY = offsetY;
 
         // show or create the floating washi toolbar at starting point
-        showFloatingWashiToolbarAt(washiStartX, washiStartY);
+        showFloatingWashiToolbarAt(corkboard.clientWidth / 2, 60);
 
         e.preventDefault();
         return;
@@ -1344,7 +1609,7 @@ function endDragOrResize(e) {
     }
 }
 
-// --- Toolbar Handlers (functions omitted for brevity, logic retained) ---
+// --- Toolbar Handlers (Retained) ---
 
 function handleToolClick(e) {
     const btn = e.target.closest('.tool-btn');
@@ -1506,7 +1771,7 @@ function makeColorVibrant(hex) {
     return rgbToHex(Math.round(rgb2.r), Math.round(rgb2.g), Math.round(rgb2.b));
 }
 
-/* Color helpers (omitted for brevity, retained logic) */
+/* Color helpers */
 function hexToRgb(hex) {
     if (!hex) return null;
     hex = hex.replace('#', '');
@@ -1758,7 +2023,7 @@ function redrawAllStrokes() {
     ctx.globalAlpha = 1;
 }
 
-// Floating Washi Toolbar (functions omitted for brevity, logic retained)
+// Floating Washi Toolbar (Retained)
 function createFloatingWashiToolbar() {
     if (floatingWashiToolbar) return floatingWashiToolbar;
 
@@ -2087,25 +2352,60 @@ function handlePasswordReset() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.quadrant-add-btn').forEach(button => {
-        button.addEventListener('click', () => {
+    
+    // --- FIX: Search Input Selector and Listener moved here ---
+    const searchInput = document.getElementById('search-input'); // Element selection is now safe
+
+    searchInput?.addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        renderAllViews(); // Re-render all task views with the new filter
+    });
+    // --- END FIX ---
+
+    // --- Sort Toggle Listeners ---
+    document.querySelectorAll('.sort-toggle-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const quadrantId = e.currentTarget.getAttribute('data-quadrant-sort');
+            
+            // Toggle the sort direction state (Newer (desc) or Older (asc) first)
+            creationSortDirection[quadrantId] = 
+                creationSortDirection[quadrantId] === 'asc' ? 'desc' : 'asc';
+                
+            renderMatrixView(); // Re-render the matrix with the new sort
+        });
+    });
+    
+    // --- New Page Link Listeners ---
+    document.querySelectorAll('.new-page-link').forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
             const quadrant = button.getAttribute('data-quadrant');
             openModal(null, quadrant);
         });
     });
+
+    // --- NEW: Filter Button Listeners ---
+    document.querySelectorAll('.edit-filter-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const quadrantId = e.currentTarget.getAttribute('data-quadrant-filter');
+            openFilterModal(quadrantId);
+        });
+    });
+
+    filterForm?.addEventListener('submit', handleFilterFormSubmit);
+    
+    clearFiltersBtn?.addEventListener('click', handleClearFilters);
+
+    filterModal?.addEventListener('click', (e) => {
+        if (e.target === filterModal) closeFilterModal();
+    });
+    // --- END NEW ---
 
     // Initial data loading moved to auth listener for authenticated users
     loadLocalData();
 
     if (canvas && corkboard) initializeStickyWall();
 
-    quadrants.forEach(q => {
-        q.querySelector('.quadrant-add-btn')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const quadrant = e.currentTarget.getAttribute('data-quadrant');
-            openModal(null, quadrant);
-        });
-    });
 
     closeButton?.addEventListener('click', closeModal);
     modal?.addEventListener('click', (e) => {
@@ -2122,6 +2422,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const taskDescription = document.getElementById('task-description').value;
         const taskDueDate = document.getElementById('task-due-date').value;
         const taskQuadrant = document.getElementById('task-priority').value;
+        const taskStatus = document.getElementById('task-status').value; // NEW: Get status
 
         const existingTask = tasks.find(t => t.id === taskId);
 
@@ -2131,7 +2432,7 @@ document.addEventListener('DOMContentLoaded', () => {
             description: taskDescription,
             dueDate: taskDueDate,
             quadrant: taskQuadrant,
-            completed: existingTask?.completed,
+            status: taskStatus, // NEW: Pass status
             subtasks: existingTask?.subtasks || []
         };
 
@@ -2250,7 +2551,6 @@ document.addEventListener('DOMContentLoaded', () => {
         saveStrokes();
     });
     
-    // --- NEW WIRING: Forgot Password Link ---
     document.getElementById('forgot-password-link')?.addEventListener('click', (e) => {
         e.preventDefault();
         handlePasswordReset();
