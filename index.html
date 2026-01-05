@@ -58,6 +58,7 @@
           <span class="matrix-axis-label absolute top-0 right-1/4 transform -translate-x-1/2 mt-2">NOT URGENT</span>
 
           <div class="quadrant quadrant-do" data-quadrant="do">
+            <div class="quadrant-label">Urgent, Important</div>
             <div class="quadrant-header-wrapper">
                 <h3><i class="fas fa-bolt"></i> DO NOW</h3>
             </div>
@@ -75,6 +76,7 @@
           </div>
           
           <div class="quadrant quadrant-schedule" data-quadrant="schedule">
+            <div class="quadrant-label">Not Urgent, Important</div>
             <div class="quadrant-header-wrapper">
                 <h3><i class="fas fa-calendar-alt"></i> SCHEDULE</h3>
             </div>
@@ -92,6 +94,7 @@
           </div>
           
           <div class="quadrant quadrant-delegate" data-quadrant="delegate">
+            <div class="quadrant-label">Urgent, Not Important</div>
             <div class="quadrant-header-wrapper">
                 <h3><i class="fas fa-user-plus"></i> DELEGATE</h3>
             </div>
@@ -109,6 +112,7 @@
           </div>
           
           <div class="quadrant quadrant-eliminate" data-quadrant="eliminate">
+            <div class="quadrant-label">Not Urgent, Not Important</div>
             <div class="quadrant-header-wrapper">
                 <h3><i class="fas fa-trash-alt"></i> ELIMINATE</h3>
             </div>
@@ -254,6 +258,25 @@
                 <option value="done">Done</option>
               </select>
             </div>
+            <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <div class="form-group" style="flex: 1;">
+                <label for="task-category"><i class="fas fa-tag"></i> Category</label>
+                <select id="task-category" name="task-category" class="account-input" style="width: 100%;">
+                    <option value="none">None</option>
+                    <option value="life">Life (Red)</option>
+                    <option value="work">Work (Blue)</option>
+                    <option value="part-time">Part-time (Purple)</option>
+                    <option value="love">Love (Pink)</option>
+                    <option value="family">Family (Orange)</option>
+                    <option value="friends">Friends (Yellow)</option>
+                    <option value="self">Self (Green)</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
+                <input type="date" id="task-due-date" name="task-due-date" class="account-input" />
+            </div>
+        </div>
             <div class="form-group">
               <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
               <textarea id="task-description" placeholder="Add details..."></textarea>

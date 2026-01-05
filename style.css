@@ -174,17 +174,30 @@ main {
     height: calc(100vh - 120px); /* Adjust height for title/padding */
 }
 
+/* MODIFIED: Hide the axis labels that are outside the grid */
 .matrix-axis-label {
-    position: absolute;
-    font-weight: 700;
-    color: #999;
-    font-size: 0.9em;
+    /* Existing styles remain for structure, but we'll hide them */
+    display: none; /* NEW: Hide old outer labels */
 }
 
-.axis-urgent { top: 10px; left: 50%; transform: translateX(-50%); }
-.axis-not-urgent { top: 10px; right: 10px; }
-.axis-important { top: 50%; left: 10px; transform: translateY(-50%) rotate(270deg); }
-.axis-not-important { bottom: 10px; left: 10px; transform: translateY(-50%) rotate(270deg); }
+/* NEW: Style for the internal quadrant label */
+.quadrant-label {
+    position: absolute;
+    top: 0; /* Positioned at the top of the quadrant */
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%); /* Move up by 100% of its own height */
+    padding: 4px 10px;
+    background-color: rgba(0, 0, 0, 0.75); /* Dark background for visibility */
+    color: white;
+    font-size: 0.75em;
+    font-weight: 600;
+    border-radius: 6px 6px 0 0; /* Rounded top corners */
+    z-index: 5; /* Above other content */
+    opacity: 1; /* Default visible state */
+    transition: opacity 0.2s ease-out; /* Smooth fade effect */
+    pointer-events: none; /* Ensure it doesn't block clicks */
+    white-space: nowrap;
+}
 
 .quadrant {
     border-radius: 12px;
@@ -194,6 +207,13 @@ main {
     flex-direction: column;
     overflow: hidden;
     transition: transform 0.3s ease;
+    /* NEW: Add position relative for the absolute label */
+    position: relative; 
+}
+
+/* NEW: Hide the label on quadrant hover */
+.quadrant:hover .quadrant-label {
+    opacity: 0;
 }
 
 .quadrant:hover {
@@ -440,6 +460,21 @@ main {
     color: #6a40e1;
     font-family: 'Roboto', sans-serif;
     font-weight: 700;
+}
+
+/* --- Category Color Labels --- */
+.cat-life { border-left: 6px solid #ff4d4f !important; }      /* Red */
+.cat-work { border-left: 6px solid #1890ff !important; }      /* Blue */
+.cat-part-time { border-left: 6px solid #722ed1 !important; } /* Purple */
+.cat-love { border-left: 6px solid #eb2f96 !important; }      /* Pink */
+.cat-family { border-left: 6px solid #fa8c16 !important; }    /* Orange */
+.cat-friends { border-left: 6px solid #fadb14 !important; }   /* Yellow */
+.cat-self { border-left: 6px solid #52c41a !important; }      /* Green */
+
+/* Ensure the task items have space for the border */
+.task-list-item {
+    transition: border-left 0.2s ease;
+    padding-left: 12px;
 }
 
 .form-group {

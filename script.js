@@ -271,6 +271,7 @@ function loadStrokes() {
 function saveTask(taskData) {
     let task;
     const newStatus = taskData.status || 'not_started';
+    const category = taskData.category || 'none'; // NEW: Category support
 
     if (taskData.id) {
         task = tasks.find(t => t.id === taskData.id);
@@ -281,6 +282,7 @@ function saveTask(taskData) {
                 dueDate: taskData.dueDate,
                 quadrant: taskData.quadrant || 'do',
                 status: newStatus, // NEW: Use status from form
+                category: category, // NEW: Category from form
                 // Derived properties for UI compatibility
                 completed: newStatus === 'done', 
                 completedDate: newStatus === 'done' ? new Date().toISOString().split('T')[0] : null,
@@ -296,6 +298,7 @@ function saveTask(taskData) {
             dueDate: taskData.dueDate,
             quadrant: taskData.quadrant || 'do',
             status: newStatus, // NEW: Use status
+            category: category, // NEW: Use category
             // Derived properties for UI compatibility
             completed: newStatus === 'done', 
             completedDate: newStatus === 'done' ? new Date().toISOString().split('T')[0] : null,
@@ -551,7 +554,8 @@ function loadLocalData() {
 
 function createTaskCard(task) {
     const li = document.createElement('li');
-    li.className = 'task-item-card';
+    // MODIFIED: Add category class for color styling
+    li.className = `task-item-card cat-${task.category || 'none'}`; 
     li.setAttribute('data-task-id', task.id);
     
     // MODIFIED: Use status to determine visual completion state
@@ -725,6 +729,10 @@ function openModal(taskId = null, quadrant = 'do') {
     // NEW: Load Status
     const initialStatus = task ? task.status : 'not_started';
     document.getElementById('task-status').value = initialStatus;
+
+    // NEW: Load Category
+    const initialCategory = task ? task.category : 'none';
+    document.getElementById('task-category').value = initialCategory;
 
     if (task) {
         document.getElementById('task-title').value = task.title;
@@ -2422,7 +2430,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const taskDescription = document.getElementById('task-description').value;
         const taskDueDate = document.getElementById('task-due-date').value;
         const taskQuadrant = document.getElementById('task-priority').value;
-        const taskStatus = document.getElementById('task-status').value; // NEW: Get status
+        const taskStatus = document.getElementById('task-status').value; // Get status
+        const taskCategory = document.getElementById('task-category').value; // NEW: Get category
 
         const existingTask = tasks.find(t => t.id === taskId);
 
@@ -2432,7 +2441,8 @@ document.addEventListener('DOMContentLoaded', () => {
             description: taskDescription,
             dueDate: taskDueDate,
             quadrant: taskQuadrant,
-            status: taskStatus, // NEW: Pass status
+            status: taskStatus, // Pass status
+            category: taskCategory, // NEW: Pass category
             subtasks: existingTask?.subtasks || []
         };
 
