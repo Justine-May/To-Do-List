@@ -1,25 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Task Organizer & Sticky Wall</title>
+  <title>Task Hub — Organize with Style</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              950: '#070a13',
+            }
+          }
+        }
+      }
+    }
+  </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Permanent+Marker&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <div class="app-container">
+<body class="dark:bg-slate-950 bg-slate-50 transition-colors duration-300">
+  <!-- Premium Ambient Glow Backdrop -->
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute -top-[10%] -left-[10%] w-[45vw] h-[45vw] rounded-full bg-indigo-500/10 dark:bg-indigo-600/15 blur-[120px] animate-pulse" style="animation-duration: 8s;"></div>
+    <div class="absolute top-[30%] right-[-10%] w-[35vw] h-[35vw] rounded-full bg-pink-500/10 dark:bg-pink-600/10 blur-[100px] animate-pulse" style="animation-duration: 12s;"></div>
+    <div class="absolute -bottom-[10%] left-[20%] w-[40vw] h-[40vw] rounded-full bg-cyan-500/5 dark:bg-cyan-600/10 blur-[130px] animate-pulse" style="animation-duration: 10s;"></div>
+  </div>
+
+  <div class="app-container relative z-10">
 
     <aside class="sidebar">
       <div class="menu-header">
         <h2>Task Hub</h2>
+        <button id="theme-toggle" class="theme-toggle-btn" title="Toggle theme">
+          <i class="ri-moon-line dark:hidden"></i>
+          <i class="ri-sun-line hidden dark:inline"></i>
+        </button>
       </div>
 
       <div class="search-box">
@@ -47,86 +72,135 @@
 
     <main class="relative">
       <button class="menu-toggle"><i class="fas fa-bars"></i></button>
-      <div class="overlay"></div>
-
-      <div id="matrix-container" class="view-container active">
-        <h1 class="matrix-title">  </h1>
-        <div class="matrix-grid relative">
-          <span class="matrix-axis-label absolute top-2/4 -left-10 transform -translate-y-1/2 rotate-270">IMPORTANT</span>
-          <span class="matrix-axis-label absolute bottom-2/4 -left-10 transform translate-y-1/2 rotate-270">NOT IMPORTANT</span>
-          <span class="matrix-axis-label absolute top-0 left-1/4 transform -translate-x-1/2 mt-2">URGENT</span>
-          <span class="matrix-axis-label absolute top-0 right-1/4 transform -translate-x-1/2 mt-2">NOT URGENT</span>
-
+      <div class="overlay"></div>      <div id="matrix-container" class="view-container active">
+        <div class="matrix-grid">
+          
           <div class="quadrant quadrant-do" data-quadrant="do">
-            <div class="quadrant-label">Urgent, Important</div>
             <div class="quadrant-header-wrapper">
-                <h3><i class="fas fa-bolt"></i> DO NOW</h3>
-            </div>
-            <div class="quadrant-controls">
-                <button class="control-btn view-btn"><i class="fas fa-list-ul"></i> List</button>
-                <div class="control-actions">
-                    <button class="control-btn edit-filter-btn" data-quadrant-filter="do"><i class="fas fa-sliders-h"></i> Edit filters</button>
-                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="do">
-                        <i class="fas fa-arrows-alt-v"></i><span class="sort-direction-indicator"></span>
-                    </button>
-                    <button class="control-btn add-new-btn new-page-link" data-quadrant="do"><i class="fas fa-plus"></i> New page</button>
+                <div class="quadrant-header-top">
+                    <div class="quadrant-title-group">
+                        <span class="quadrant-circle" style="color: #ef4444;"></span>
+                        <h3>DO NOW</h3>
+                    </div>
+                    <span class="quadrant-meta-label">Urgent, Important</span>
+                </div>
+                <div class="quadrant-sub-label">
+                    <span class="sub-circle"></span>
+                    <span>List</span>
                 </div>
             </div>
+            <div class="quadrant-divider"></div>
             <ul class="task-list" id="do-list"></ul>
+            
+            <div class="quadrant-footer">
+                <button class="add-task-btn add-new-btn new-page-link" data-quadrant="do">
+                    <i class="fas fa-plus"></i> Add Task
+                </button>
+                <div class="quadrant-footer-actions">
+                    <button class="control-btn edit-filter-btn" data-quadrant-filter="do" title="Edit Filters">
+                        <i class="fas fa-sliders-h"></i>
+                    </button>
+                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="do" title="Toggle Sort">
+                        <i class="fas fa-arrows-alt-v"></i>
+                    </button>
+                </div>
+            </div>
           </div>
           
           <div class="quadrant quadrant-schedule" data-quadrant="schedule">
-            <div class="quadrant-label">Not Urgent, Important</div>
             <div class="quadrant-header-wrapper">
-                <h3><i class="fas fa-calendar-alt"></i> SCHEDULE</h3>
-            </div>
-            <div class="quadrant-controls">
-                <button class="control-btn view-btn"><i class="fas fa-list-ul"></i> List</button>
-                <div class="control-actions">
-                    <button class="control-btn edit-filter-btn" data-quadrant-filter="schedule"><i class="fas fa-sliders-h"></i> Edit filters</button>
-                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="schedule">
-                        <i class="fas fa-arrows-alt-v"></i><span class="sort-direction-indicator"></span>
-                    </button>
-                    <button class="control-btn add-new-btn new-page-link" data-quadrant="schedule"><i class="fas fa-plus"></i> New page</button>
+                <div class="quadrant-header-top">
+                    <div class="quadrant-title-group">
+                        <span class="quadrant-circle" style="color: #f59e0b;"></span>
+                        <h3>SCHEDULE</h3>
+                    </div>
+                    <span class="quadrant-meta-label">Less Urgent, Important</span>
+                </div>
+                <div class="quadrant-sub-label">
+                    <span class="sub-circle"></span>
+                    <span>Schedule</span>
                 </div>
             </div>
+            <div class="quadrant-divider"></div>
             <ul class="task-list" id="schedule-list"></ul>
+            
+            <div class="quadrant-footer">
+                <button class="add-task-btn add-new-btn new-page-link" data-quadrant="schedule">
+                    <i class="fas fa-plus"></i> Add Task
+                </button>
+                <div class="quadrant-footer-actions">
+                    <button class="control-btn edit-filter-btn" data-quadrant-filter="schedule" title="Edit Filters">
+                        <i class="fas fa-sliders-h"></i>
+                    </button>
+                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="schedule" title="Toggle Sort">
+                        <i class="fas fa-arrows-alt-v"></i>
+                    </button>
+                </div>
+            </div>
           </div>
           
           <div class="quadrant quadrant-delegate" data-quadrant="delegate">
-            <div class="quadrant-label">Urgent, Not Important</div>
             <div class="quadrant-header-wrapper">
-                <h3><i class="fas fa-user-plus"></i> DELEGATE</h3>
-            </div>
-            <div class="quadrant-controls">
-                <button class="control-btn view-btn"><i class="fas fa-list-ul"></i> List</button>
-                <div class="control-actions">
-                    <button class="control-btn edit-filter-btn" data-quadrant-filter="delegate"><i class="fas fa-sliders-h"></i> Edit filters</button>
-                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="delegate">
-                        <i class="fas fa-arrows-alt-v"></i><span class="sort-direction-indicator"></span>
-                    </button>
-                    <button class="control-btn add-new-btn new-page-link" data-quadrant="delegate"><i class="fas fa-plus"></i> New page</button>
+                <div class="quadrant-header-top">
+                    <div class="quadrant-title-group">
+                        <span class="quadrant-circle" style="color: #eab308;"></span>
+                        <h3>DELEGATE</h3>
+                    </div>
+                    <span class="quadrant-meta-label">Urgent, Less Important</span>
+                </div>
+                <div class="quadrant-sub-label">
+                    <span class="sub-circle"></span>
+                    <span>Delegate</span>
                 </div>
             </div>
+            <div class="quadrant-divider"></div>
             <ul class="task-list" id="delegate-list"></ul>
+            
+            <div class="quadrant-footer">
+                <button class="add-task-btn add-new-btn new-page-link" data-quadrant="delegate">
+                    <i class="fas fa-plus"></i> Add Task
+                </button>
+                <div class="quadrant-footer-actions">
+                    <button class="control-btn edit-filter-btn" data-quadrant-filter="delegate" title="Edit Filters">
+                        <i class="fas fa-sliders-h"></i>
+                    </button>
+                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="delegate" title="Toggle Sort">
+                        <i class="fas fa-arrows-alt-v"></i>
+                    </button>
+                </div>
+            </div>
           </div>
           
           <div class="quadrant quadrant-eliminate" data-quadrant="eliminate">
-            <div class="quadrant-label">Not Urgent, Not Important</div>
             <div class="quadrant-header-wrapper">
-                <h3><i class="fas fa-trash-alt"></i> ELIMINATE</h3>
-            </div>
-            <div class="quadrant-controls">
-                <button class="control-btn view-btn"><i class="fas fa-list-ul"></i> List</button>
-                <div class="control-actions">
-                    <button class="control-btn edit-filter-btn" data-quadrant-filter="eliminate"><i class="fas fa-sliders-h"></i> Edit filters</button>
-                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="eliminate">
-                        <i class="fas fa-arrows-alt-v"></i><span class="sort-direction-indicator"></span>
-                    </button>
-                    <button class="control-btn add-new-btn new-page-link" data-quadrant="eliminate"><i class="fas fa-plus"></i> New page</button>
+                <div class="quadrant-header-top">
+                    <div class="quadrant-title-group">
+                        <span class="quadrant-circle" style="color: #10b981;"></span>
+                        <h3>LEAVE</h3>
+                    </div>
+                    <span class="quadrant-meta-label">Less Urgent, Less Important</span>
+                </div>
+                <div class="quadrant-sub-label">
+                    <span class="sub-circle"></span>
+                    <span>Leave</span>
                 </div>
             </div>
+            <div class="quadrant-divider"></div>
             <ul class="task-list" id="eliminate-list"></ul>
+            
+            <div class="quadrant-footer">
+                <button class="add-task-btn add-new-btn new-page-link" data-quadrant="eliminate">
+                    <i class="fas fa-plus"></i> Add Task
+                </button>
+                <div class="quadrant-footer-actions">
+                    <button class="control-btn edit-filter-btn" data-quadrant-filter="eliminate" title="Edit Filters">
+                        <i class="fas fa-sliders-h"></i>
+                    </button>
+                    <button class="control-btn sort-toggle-btn" data-quadrant-sort="eliminate" title="Toggle Sort">
+                        <i class="fas fa-arrows-alt-v"></i>
+                    </button>
+                </div>
+            </div>
           </div>
         </div>
       </div>
@@ -142,6 +216,61 @@
       <div id="sticky-wall-container" class="view-container">
         <div id="corkboard" data-tool="select">
           <canvas id="annotation-canvas"></canvas>
+
+          <div id="note-floating-toolbar" class="hidden">
+            <div class="note-toolbar-segment note-select-group">
+              <button id="note-color-btn" class="note-tool-btn note-select-btn" title="Note Color">
+                <span id="current-note-color"><i class="note-color-indicator ri-square-fill"></i></span>
+                <i class="ri-arrow-down-s-line ml-1"></i>
+              </button>
+              <div id="note-color-menu" class="note-dropdown-menu">
+                <button class="note-color-option" data-color="yellow" style="color: #fff9b0;"><i class="note-color-indicator ri-square-fill"></i></button>
+                <button class="note-color-option" data-color="blue" style="color: #a0d9ff;"><i class="note-color-indicator ri-square-fill"></i></button>
+                <button class="note-color-option" data-color="green" style="color: #baffc9;"><i class="note-color-indicator ri-square-fill"></i></button>
+                <button class="note-color-option" data-color="pink" style="color: #ffb3ba;"><i class="note-color-indicator ri-square-fill"></i></button>
+                <button class="note-color-option" data-color="purple" style="color: #e0b5ff;"><i class="note-color-indicator ri-square-fill"></i></button>
+                <button class="note-color-option" data-color="white" style="color: #FFFFFF;"><i class="note-color-indicator ri-square-fill"></i></button>
+              </div>
+            </div>
+
+            <div class="note-toolbar-segment note-select-group">
+              <button id="note-font-btn" class="note-tool-btn note-select-btn" title="Font Family">
+                <span id="current-font-display">Inter</span>
+                <i class="ri-arrow-down-s-line ml-1"></i>
+              </button>
+              <div id="note-font-menu" class="note-dropdown-menu">
+                <button class="note-font-option" data-font="inter">Inter</button>
+                <button class="note-font-option" data-font="roboto">Roboto</button>
+                <button class="note-font-option" data-font="marker" style="font-family: 'Permanent Marker', cursive;">Marker</button>
+              </div>
+            </div>
+
+            <div class="note-toolbar-segment note-select-group">
+              <button id="note-size-btn" class="note-tool-btn note-select-btn" title="Text Size">
+                <i class="ri-text"></i>
+                <span id="current-size-display">Medium</span>
+                <i class="ri-arrow-down-s-line ml-1"></i>
+              </button>
+              <div id="note-size-menu" class="note-dropdown-menu">
+                <button class="note-size-option" data-size="small">Small</button>
+                <button class="note-size-option active-size" data-size="medium">Medium</button>
+                <button class="note-size-option" data-size="large">Large</button>
+              </div>
+            </div>
+
+            <div class="note-toolbar-segment note-formatting-buttons">
+              <button class="note-tool-btn" data-text-style="bold" title="Bold"><i class="ri-bold"></i></button>
+              <button class="note-tool-btn" data-text-style="strike" title="Strikethrough"><i class="ri-strikethrough"></i></button>
+              <button class="note-tool-btn" data-text-style="unordered-list" title="Bullet List"><i class="ri-list-unordered"></i></button>
+              <button class="note-tool-btn" data-text-style="ordered-list" title="Numbered List"><i class="ri-list-ordered"></i></button>
+              <button class="note-tool-btn" id="note-author-btn" title="Insert Author"><i class="ri-at-line"></i></button>
+            </div>
+
+            <div class="note-toolbar-segment note-right-edge note-action-buttons">
+              <button class="note-tool-btn note-draw-toggle" title="Draw on Note"><i class="ri-pencil-line"></i></button>
+              <button class="note-tool-btn note-delete-btn" title="Delete Note"><i class="ri-delete-bin-line"></i></button>
+            </div>
+          </div>
         </div>
 
         <div id="main-toolbar" class="hidden">
@@ -165,61 +294,28 @@
             <button class="tool-btn" id="undo-btn" title="Undo Last Stroke"><i class="ri-arrow-go-back-line"></i></button>
             <button class="tool-btn" id="clear-all-btn" title="Clear All Drawings"><i class="ri-delete-bin-line"></i></button>
           </div>
+
+          <div class="toolbar-segment relative">
+            <button id="board-style-btn" class="tool-btn note-select-btn" title="Board Style">
+              <i class="ri-palette-line"></i>
+              <span id="current-board-style-display" class="ml-1 text-sm">Cork</span>
+              <i class="ri-arrow-down-s-line ml-1"></i>
+            </button>
+            <div id="board-style-menu" class="note-dropdown-menu">
+              <button class="board-style-option active-style" data-style="cork">Cork Board</button>
+              <button class="board-style-option" data-style="dot-grid">Dot Grid</button>
+              <button class="board-style-option" data-style="square-grid">Square Grid</button>
+              <button class="board-style-option" data-style="glass">Glass Minimal</button>
+            </div>
+          </div>
         </div>
 
-        <div id="note-floating-toolbar" class="hidden">
-          <div class="note-toolbar-segment note-select-group">
-            <button id="note-color-btn" class="note-tool-btn note-select-btn" title="Note Color">
-              <span id="current-note-color"><i class="note-color-indicator ri-square-fill"></i></span>
-              <i class="ri-arrow-down-s-line ml-1"></i>
-            </button>
-            <div id="note-color-menu" class="note-dropdown-menu">
-              <button class="note-color-option" data-color="yellow" style="color: #fff9b0;"><i class="note-color-indicator ri-square-fill"></i></button>
-              <button class="note-color-option" data-color="blue" style="color: #a0d9ff;"><i class="note-color-indicator ri-square-fill"></i></button>
-              <button class="note-color-option" data-color="green" style="color: #baffc9;"><i class="note-color-indicator ri-square-fill"></i></button>
-              <button class="note-color-option" data-color="pink" style="color: #ffb3ba;"><i class="note-color-indicator ri-square-fill"></i></button>
-              <button class="note-color-option" data-color="purple" style="color: #e0b5ff;"><i class="note-color-indicator ri-square-fill"></i></button>
-              <button class="note-color-option" data-color="white" style="color: #FFFFFF;"><i class="note-color-indicator ri-square-fill"></i></button>
-            </div>
-          </div>
-
-          <div class="note-toolbar-segment note-select-group">
-            <button id="note-font-btn" class="note-tool-btn note-select-btn" title="Font Family">
-              <span id="current-font-display">Inter</span>
-              <i class="ri-arrow-down-s-line ml-1"></i>
-            </button>
-            <div id="note-font-menu" class="note-dropdown-menu">
-              <button class="note-font-option" data-font="inter">Inter</button>
-              <button class="note-font-option" data-font="roboto">Roboto</button>
-              <button class="note-font-option" data-font="marker" style="font-family: 'Permanent Marker', cursive;">Marker</button>
-            </div>
-          </div>
-
-          <div class="note-toolbar-segment note-select-group">
-            <button id="note-size-btn" class="note-tool-btn note-select-btn" title="Text Size">
-              <i class="ri-text"></i>
-              <span id="current-size-display">Medium</span>
-              <i class="ri-arrow-down-s-line ml-1"></i>
-            </button>
-            <div id="note-size-menu" class="note-dropdown-menu">
-              <button class="note-size-option" data-size="small">Small</button>
-              <button class="note-size-option active-size" data-size="medium">Medium</button>
-              <button class="note-size-option" data-size="large">Large</button>
-            </div>
-          </div>
-
-          <div class="note-toolbar-segment note-formatting-buttons">
-            <button class="note-tool-btn" data-text-style="bold" title="Bold"><i class="ri-bold"></i></button>
-            <button class="note-tool-btn" data-text-style="strike" title="Strikethrough"><i class="ri-strikethrough"></i></button>
-            <button class="note-tool-btn" data-text-style="unordered-list" title="Bullet List"><i class="ri-list-unordered"></i></button>
-            <button class="note-tool-btn" data-text-style="ordered-list" title="Numbered List"><i class="ri-list-ordered"></i></button>
-            <button class="note-tool-btn" id="note-author-btn" title="Insert Author"><i class="ri-at-line"></i></button>
-          </div>
-
-          <div class="note-toolbar-segment note-right-edge note-action-buttons">
-            <button class="note-tool-btn note-draw-toggle" title="Draw on Note"><i class="ri-pencil-line"></i></button>
-            <button class="note-tool-btn note-delete-btn" title="Delete Note"><i class="ri-delete-bin-line"></i></button>
-          </div>
+        <!-- Figma Zoom Controls -->
+        <div id="figma-zoom-controls" class="figma-zoom-widget">
+          <button id="zoom-out-btn" class="zoom-widget-btn" title="Zoom Out"><i class="ri-subtract-line"></i></button>
+          <span id="zoom-percentage-display" class="zoom-widget-text">100%</span>
+          <button id="zoom-in-btn" class="zoom-widget-btn" title="Zoom In"><i class="ri-add-line"></i></button>
+          <button id="zoom-reset-btn" class="zoom-widget-btn" title="Zoom to 100%"><i class="ri-aspect-ratio-line"></i></button>
         </div>
         
         <div id="washi-toolbar" class="hidden"></div>
@@ -227,60 +323,111 @@
 
       <div id="task-details-modal" class="modal-overlay">
         <div class="modal-content">
-          <button class="close-button" onclick="closeModal()">&times;</button>
-          <h2 id="modal-title">Task Details</h2>
+          <button class="close-button" onclick="closeModal()"><i class="fas fa-times"></i></button>
+          <h2 id="modal-title"><i class="fas fa-edit" style="color: var(--color-primary); margin-right: 10px;"></i>Task Details</h2>
           <form id="task-form">
             <input type="hidden" id="current-task-id" value="">
-            <div class="form-group">
-              <label for="task-title"><i class="fas fa-heading"></i> Title</label>
-              <input type="text" id="task-title" required placeholder="Enter task title">
-            </div>
-            <div class="form-row">
-              <div class="form-group half-width">
-                <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
-                <input type="date" id="task-due-date">
+            
+            <!-- Hidden native selectors for logic compatibility -->
+            <select id="task-priority" style="display: none;" required>
+              <option value="do">do</option>
+              <option value="schedule">schedule</option>
+              <option value="delegate">delegate</option>
+              <option value="eliminate">eliminate</option>
+            </select>
+            <select id="task-status" style="display: none;" required>
+              <option value="not_started">not_started</option>
+              <option value="in_progress">in_progress</option>
+              <option value="done">done</option>
+            </select>
+            <select id="task-category" style="display: none;">
+              <option value="none">none</option>
+              <option value="life">life</option>
+              <option value="work">work</option>
+              <option value="part-time">part-time</option>
+              <option value="love">love</option>
+              <option value="family">family</option>
+              <option value="friends">friends</option>
+              <option value="self">self</option>
+            </select>
+
+            <div class="task-details-grid-layout">
+              <!-- Column 1: Core content (Title & Description) -->
+              <div class="grid-col main-details-col">
+                <div class="form-group">
+                  <label for="task-title"><i class="fas fa-heading"></i> Title</label>
+                  <input type="text" id="task-title" required placeholder="What needs to be done?">
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
+                  <textarea id="task-description" placeholder="Add some descriptive details..."></textarea>
+                </div>
               </div>
-              <div class="form-group half-width">
-                <label for="task-priority"><i class="fas fa-star"></i> Quadrant</label>
-                <select id="task-priority" required>
-                  <option value="do">Do Now</option>
-                  <option value="schedule">Schedule</option>
-                  <option value="delegate">Delegate</option>
-                  <option value="eliminate">Eliminate</option>
-                </select>
+
+              <!-- Column 2: Parameters (Quadrant & Status) -->
+              <div class="grid-col parameters-col">
+                <div class="form-group">
+                  <label><i class="fas fa-star"></i> Select Quadrant</label>
+                  <div class="custom-quadrant-selector vertical-layout">
+                    <button type="button" class="quadrant-opt" data-value="do">
+                      <span class="opt-dot dot-do"></span>
+                      <span class="opt-text">Do Now</span>
+                    </button>
+                    <button type="button" class="quadrant-opt" data-value="schedule">
+                      <span class="opt-dot dot-schedule"></span>
+                      <span class="opt-text">Schedule</span>
+                    </button>
+                    <button type="button" class="quadrant-opt" data-value="delegate">
+                      <span class="opt-dot dot-delegate"></span>
+                      <span class="opt-text">Delegate</span>
+                    </button>
+                    <button type="button" class="quadrant-opt" data-value="eliminate">
+                      <span class="opt-dot dot-eliminate"></span>
+                      <span class="opt-text">Leave</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label><i class="fas fa-tasks"></i> Status</label>
+                  <div class="custom-status-selector vertical-layout">
+                    <button type="button" class="status-opt" data-value="not_started">
+                      <i class="far fa-circle"></i> Not Started
+                    </button>
+                    <button type="button" class="status-opt" data-value="in_progress">
+                      <i class="fas fa-spinner"></i> In Progress
+                    </button>
+                    <button type="button" class="status-opt" data-value="done">
+                      <i class="fas fa-check-circle"></i> Done
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Column 3: Secondary (Category & Due Date) -->
+              <div class="grid-col secondary-col">
+                <div class="form-group">
+                  <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
+                  <input type="date" id="task-due-date" name="task-due-date" />
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label><i class="fas fa-tag"></i> Category</label>
+                  <div class="custom-category-selector grid-layout">
+                    <button type="button" class="cat-opt" data-value="none">None</button>
+                    <button type="button" class="cat-opt cat-life" data-value="life">Life</button>
+                    <button type="button" class="cat-opt cat-work" data-value="work">Work</button>
+                    <button type="button" class="cat-opt cat-part-time" data-value="part-time">Part-time</button>
+                    <button type="button" class="cat-opt cat-love" data-value="love">Love</button>
+                    <button type="button" class="cat-opt cat-family" data-value="family">Family</button>
+                    <button type="button" class="cat-opt cat-friends" data-value="friends">Friends</button>
+                    <button type="button" class="cat-opt cat-self" data-value="self">Self</button>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="form-group">
-              <label for="task-status"><i class="fas fa-tasks"></i> Status</label>
-              <select id="task-status" required>
-                <option value="not_started">Not Started</option>
-                <option value="in_progress">In Progress</option>
-                <option value="done">Done</option>
-              </select>
-            </div>
-            <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <div class="form-group" style="flex: 1;">
-                <label for="task-category"><i class="fas fa-tag"></i> Category</label>
-                <select id="task-category" name="task-category" class="account-input" style="width: 100%;">
-                    <option value="none">None</option>
-                    <option value="life">Life (Red)</option>
-                    <option value="work">Work (Blue)</option>
-                    <option value="part-time">Part-time (Purple)</option>
-                    <option value="love">Love (Pink)</option>
-                    <option value="family">Family (Orange)</option>
-                    <option value="friends">Friends (Yellow)</option>
-                    <option value="self">Self (Green)</option>
-                </select>
-            </div>
-            <div class="form-group" style="flex: 1;">
-                <label for="task-due-date"><i class="fas fa-calendar-alt"></i> Due Date</label>
-                <input type="date" id="task-due-date" name="task-due-date" class="account-input" />
-            </div>
-        </div>
-            <div class="form-group">
-              <label for="task-description"><i class="fas fa-align-left"></i> Description</label>
-              <textarea id="task-description" placeholder="Add details..."></textarea>
-            </div>
+            
             <div class="modal-actions">
               <button type="button" class="btn delete-btn hidden" id="delete-task-btn"><i class="fas fa-trash-alt"></i> Delete</button>
               <button type="submit" class="btn save-btn" id="save-task-btn"><i class="fas fa-save"></i> Save Task</button>

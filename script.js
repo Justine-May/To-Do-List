@@ -60,8 +60,8 @@ function getPointerCoords(e) {
 function getOffsetCoords(e, targetElement) {
     const { clientX, clientY } = getPointerCoords(e);
     const rect = targetElement.getBoundingClientRect();
-    const offsetX = clientX - rect.left;
-    const offsetY = clientY - rect.top;
+    const offsetX = (clientX - rect.left) / zoom;
+    const offsetY = (clientY - rect.top) / zoom;
     return { offsetX, offsetY };
 }
 
@@ -208,6 +208,17 @@ let activeDraggable = null;
 let activeDraggableStroke = null; // The stroke object being dragged
 let currentStroke = null; // The stroke currently being drawn
 
+// Figma Pan & Zoom State Variables
+let zoom = 1.0;
+let panX = 0;
+let panY = 0;
+let isPanning = false;
+let isSpacePressed = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let initialPanX = 0;
+let initialPanY = 0;
+
 // Washi-specific state
 let isWashiDrawing = false;
 let washiStartX = 0, washiStartY = 0;
@@ -219,6 +230,11 @@ let washiToolbarShownForStroke = null; // reference to the toolbar tied to curre
 let isDrawingOnNote = false;
 let currentNoteCtx = null;
 let activeNote = null; // Currently selected sticky note DOM element
+let selectedNotes = []; // Array of selected note elements
+let isMarqueeSelecting = false;
+let marqueeStartX = 0;
+let marqueeStartY = 0;
+let marqueeElement = null;
 const USERNAME = '@User';
 
 // --- STROKE MANAGEMENT FUNCTIONS (New Section for Persistence) ---
@@ -554,11 +570,9 @@ function loadLocalData() {
 
 function createTaskCard(task) {
     const li = document.createElement('li');
-    // MODIFIED: Add category class for color styling
     li.className = `task-item-card cat-${task.category || 'none'}`; 
     li.setAttribute('data-task-id', task.id);
     
-    // MODIFIED: Use status to determine visual completion state
     const isDone = task.status === 'done'; 
     if (isDone) {
         li.classList.add('completed');
@@ -567,10 +581,44 @@ function createTaskCard(task) {
     li.setAttribute('draggable', 'true');
     li.addEventListener('dragstart', handleDragStart);
 
-    // Checkbox state reflects 'done' status
+    // Format due date to be short and clean (e.g., Jun 28)
+    let dueDateHTML = '';
+    if (task.dueDate) {
+        const dateObj = new Date(task.dueDate);
+        if (!isNaN(dateObj.getTime())) {
+            const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            dueDateHTML = `<span class="task-card-date"><i class="far fa-calendar-alt"></i> ${formattedDate}</span>`;
+        }
+    }
+
+    // Category label
+    let categoryHTML = '';
+    if (task.category && task.category !== 'none') {
+        categoryHTML = `<span class="task-card-tag cat-tag-${task.category}">${task.category}</span>`;
+    }
+
+    // Status label (only if in progress)
+    let statusHTML = '';
+    if (task.status === 'in_progress') {
+        statusHTML = `<span class="task-card-status-badge in-progress-badge">In Progress</span>`;
+    }
+
+    let dotClass = 'dot-do';
+    if (task.quadrant === 'schedule') dotClass = 'dot-schedule';
+    else if (task.quadrant === 'delegate') dotClass = 'dot-delegate';
+    else if (task.quadrant === 'eliminate') dotClass = 'dot-eliminate';
+
     li.innerHTML = `
         <input type="checkbox" class="task-checkbox" ${isDone ? 'checked' : ''}>
-        <span class="task-title-text">${task.title}</span>
+        <span class="task-color-dot ${dotClass}"></span>
+        <div class="task-card-content">
+            <span class="task-title-text">${task.title}</span>
+            <div class="task-card-meta">
+                ${categoryHTML}
+                ${statusHTML}
+                ${dueDateHTML}
+            </div>
+        </div>
     `;
 
     const checkbox = li.querySelector('.task-checkbox');
@@ -674,10 +722,19 @@ function renderMatrixView() {
             listEl.appendChild(createTaskCard(task));
         });
         
-        // Update sort indicator
-        const indicator = quadrantEl.querySelector('.sort-direction-indicator');
-        if (indicator) {
-            indicator.textContent = creationSortDirection[quadrantId] === 'desc' ? 'Newer' : 'Older';
+        // Update sort indicator icon
+        const sortBtn = quadrantEl.querySelector('.sort-toggle-btn');
+        if (sortBtn) {
+            const icon = sortBtn.querySelector('i');
+            if (icon) {
+                if (creationSortDirection[quadrantId] === 'desc') {
+                    icon.className = 'fas fa-sort-amount-down';
+                    sortBtn.title = 'Sorting: Newer First';
+                } else {
+                    icon.className = 'fas fa-sort-amount-up';
+                    sortBtn.title = 'Sorting: Older First';
+                }
+            }
         }
 
         // Indicate if filters are active
@@ -691,6 +748,12 @@ function renderMatrixView() {
         if(filterBtn) {
             // Filter is active if date filter is set OR the status filter is NOT the default
             filterBtn.classList.toggle('active-filter', isDateFilterActive || !isDefaultStatusFilter);
+        }
+
+        // Update task count badge
+        const countBadge = quadrantEl.querySelector('.task-count-badge');
+        if (countBadge) {
+            countBadge.textContent = quadrantTasks.length;
         }
     });
 
@@ -740,8 +803,23 @@ function openModal(taskId = null, quadrant = 'do') {
         document.getElementById('task-due-date').value = task.dueDate || '';
     }
 
+    // Sync custom selector UI elements
+    syncCustomModalSelectors(initialQuadrant, initialStatus, initialCategory);
+
     if (deleteTaskBtn) deleteTaskBtn.classList.toggle('hidden', !taskId);
     modal.style.display = 'flex';
+}
+
+function syncCustomModalSelectors(quadrant, status, category) {
+    document.querySelectorAll('.quadrant-opt').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-value') === quadrant);
+    });
+    document.querySelectorAll('.status-opt').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-value') === status);
+    });
+    document.querySelectorAll('.cat-opt').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-value') === category);
+    });
 }
 
 function closeModal() {
@@ -754,10 +832,10 @@ function switchView(viewName) {
 
     if (toolbar) toolbar.classList.add('hidden');
     noteFloatingToolbar?.classList.add('hidden');
-    if (activeNote) {
-        activeNote.classList.remove('active-note');
-        activeNote = null;
-    }
+    
+    document.querySelectorAll('.sticky-note').forEach(n => n.classList.remove('active-note'));
+    selectedNotes = [];
+    activeNote = null;
 
     let activeMenu = null;
     if (viewName === 'matrix') {
@@ -1028,13 +1106,17 @@ function updateNoteToolbarPosition(note) {
     const noteWidth = note.offsetWidth;
     const toolbarRect = noteFloatingToolbar.getBoundingClientRect();
 
-    let top = noteY - toolbarRect.height - 10;
-    let left = noteX + (noteWidth / 2) - (toolbarRect.width / 2);
+    // Divide by zoom to calculate position in the untransformed canvas coordinate space
+    const toolbarWidth = toolbarRect.width / zoom;
+    const toolbarHeight = toolbarRect.height / zoom;
+
+    let top = noteY - toolbarHeight - 10;
+    let left = noteX + (noteWidth / 2) - (toolbarWidth / 2);
 
     top = Math.max(0, top);
     const corkboardWidth = corkboard.scrollWidth;
     left = Math.max(10, left);
-    left = Math.min(left, corkboardWidth - toolbarRect.width - 10);
+    left = Math.min(left, corkboardWidth - toolbarWidth - 10);
 
     noteFloatingToolbar.style.top = top + 'px';
     noteFloatingToolbar.style.left = left + 'px';
@@ -1148,9 +1230,24 @@ let initialNoteWidth, initialNoteHeight, initialMouseX, initialMouseY, initialNo
 
 // MODIFIED: Handles both mouse and touch
 function startDragOrResize(e) {
+    if (!corkboard) return;
+
+    // Check if middle click or spacebar hand tool is active
+    const activeTool = corkboard.getAttribute('data-tool');
+    if (activeTool === 'hand' || e.button === 1) {
+        isPanning = true;
+        corkboard.style.cursor = 'grabbing';
+        const coords = getPointerCoords(e);
+        dragStartX = coords.clientX;
+        dragStartY = coords.clientY;
+        initialPanX = panX;
+        initialPanY = panY;
+        e.preventDefault();
+        return;
+    }
+
     // MODIFIED: Check for button only on mouse events
     if (!e.touches && e.button !== 0) return;
-    if (!corkboard) return;
 
     if (!e.target.closest('#note-floating-toolbar')) {
         document.querySelectorAll('.note-dropdown-menu').forEach(m => m.classList.remove('visible'));
@@ -1232,31 +1329,83 @@ function startDragOrResize(e) {
         // This is the element to drag
         activeDraggable = clickedElement;
         isMoving = true;
-        // MODIFIED: Use pointerCoords
         lastX = pointerCoords.clientX;
         lastY = pointerCoords.clientY;
 
-        document.querySelectorAll('.sticky-note').forEach(n => n.classList.remove('active-note'));
-        
-        // Handle toolbar for notes only
+        // Handle note selection (multi-select with Shift click)
         if (clickedNote) {
+            const isShift = e.shiftKey;
+
+            if (isShift) {
+                if (selectedNotes.includes(clickedNote)) {
+                    selectedNotes = selectedNotes.filter(n => n !== clickedNote);
+                    clickedNote.classList.remove('active-note');
+                } else {
+                    selectedNotes.push(clickedNote);
+                    clickedNote.classList.add('active-note');
+                }
+            } else {
+                if (!selectedNotes.includes(clickedNote)) {
+                    document.querySelectorAll('.sticky-note').forEach(n => n.classList.remove('active-note'));
+                    selectedNotes = [clickedNote];
+                    clickedNote.classList.add('active-note');
+                }
+            }
+
             activeNote = clickedNote;
-            activeDraggable.classList.add('active-note');
-            updateNoteToolbarState();
-            updateNoteToolbarPosition(activeNote);
-            noteFloatingToolbar?.classList.remove('hidden');
-            
-            // Bring note to front
+
+            if (selectedNotes.length === 1) {
+                updateNoteToolbarState();
+                updateNoteToolbarPosition(selectedNotes[0]);
+                noteFloatingToolbar?.classList.remove('hidden');
+            } else {
+                noteFloatingToolbar?.classList.add('hidden');
+            }
+
+            // Bring selected notes to front
             document.querySelectorAll('.draggable').forEach(n => {
-                if(n.classList.contains('sticky-note')) n.style.zIndex = '50';
+                if (n.classList.contains('sticky-note')) {
+                    if (selectedNotes.includes(n)) {
+                        n.style.zIndex = '100';
+                    } else {
+                        n.style.zIndex = '50';
+                    }
+                }
             });
-            activeNote.style.zIndex = '100';
         } else {
             noteFloatingToolbar?.classList.add('hidden');
             activeNote = null;
         }
         
         activeDraggable.classList.add('is-moving');
+        e.preventDefault();
+        return;
+    }
+
+    // Start Marquee Selection if clicking on background canvas/corkboard in select mode
+    if (!clickedElement && currentTool === 'select' && !isDrawingOnNote && (e.target === canvas || e.target === corkboard)) {
+        isMarqueeSelecting = true;
+        
+        const { offsetX, offsetY } = getOffsetCoords(e, corkboard);
+        marqueeStartX = offsetX;
+        marqueeStartY = offsetY;
+
+        // Clear previous selections if not holding Shift
+        if (!e.shiftKey) {
+            document.querySelectorAll('.sticky-note').forEach(n => n.classList.remove('active-note'));
+            selectedNotes = [];
+            activeNote = null;
+            noteFloatingToolbar?.classList.add('hidden');
+        }
+
+        marqueeElement = document.createElement('div');
+        marqueeElement.className = 'selection-marquee';
+        marqueeElement.style.left = offsetX + 'px';
+        marqueeElement.style.top = offsetY + 'px';
+        marqueeElement.style.width = '0px';
+        marqueeElement.style.height = '0px';
+        corkboard.appendChild(marqueeElement);
+
         e.preventDefault();
         return;
     }
@@ -1327,20 +1476,76 @@ function startDragOrResize(e) {
 // MODIFIED: Handles both mouse and touch
 function dragOrResize(e) {
     // MODIFIED: Add preventDefault for touch scrolling
-    if (isResizing || isMoving || drawing || noteDrawing || isWashiDrawing) {
+    if (isResizing || isMoving || drawing || noteDrawing || isWashiDrawing || isPanning || isMarqueeSelecting) {
         e.preventDefault();
     }
-    
+
     if (!corkboard) return;
-    
+
+    // Handle active panning
+    if (isPanning) {
+        const coords = getPointerCoords(e);
+        const dx = coords.clientX - dragStartX;
+        const dy = coords.clientY - dragStartY;
+        panX = initialPanX + dx;
+        panY = initialPanY + dy;
+        updateCanvasTransform();
+        return;
+    }
+
+    // Handle marquee selection update
+    if (isMarqueeSelecting && marqueeElement) {
+        const { offsetX, offsetY } = getOffsetCoords(e, corkboard);
+
+        const currentX = offsetX;
+        const currentY = offsetY;
+
+        const left = Math.min(marqueeStartX, currentX);
+        const top = Math.min(marqueeStartY, currentY);
+        const width = Math.abs(marqueeStartX - currentX);
+        const height = Math.abs(marqueeStartY - currentY);
+
+        marqueeElement.style.left = left + 'px';
+        marqueeElement.style.top = top + 'px';
+        marqueeElement.style.width = width + 'px';
+        marqueeElement.style.height = height + 'px';
+
+        // Select all notes intersecting the marquee box
+        const notes = document.querySelectorAll('.sticky-note');
+        notes.forEach(note => {
+            const noteLeft = parseInt(note.style.left) || 0;
+            const noteTop = parseInt(note.style.top) || 0;
+            const noteWidth = note.offsetWidth;
+            const noteHeight = note.offsetHeight;
+
+            // Check overlap
+            const overlap = (left < noteLeft + noteWidth &&
+                             left + width > noteLeft &&
+                             top < noteTop + noteHeight &&
+                             top + height > noteTop);
+
+            if (overlap) {
+                if (!selectedNotes.includes(note)) {
+                    selectedNotes.push(note);
+                    note.classList.add('active-note');
+                }
+            } else {
+                if (!e.shiftKey) {
+                    selectedNotes = selectedNotes.filter(n => n !== note);
+                    note.classList.remove('active-note');
+                }
+            }
+        });
+        return;
+    }
+
     const pointerCoords = getPointerCoords(e); // Get unified coords
 
     // Resizing Logic (Notes only)
     if (isResizing && activeNote) {
-        // e.preventDefault(); // Already done
-        // MODIFIED: Use pointerCoords
-        const dx = pointerCoords.clientX - initialMouseX;
-        const dy = pointerCoords.clientY - initialMouseY;
+        // MODIFIED: Divide by zoom to match screen delta to canvas scale
+        const dx = (pointerCoords.clientX - initialMouseX) / zoom;
+        const dy = (pointerCoords.clientY - initialMouseY) / zoom;
         let newWidth = initialNoteWidth;
         let newHeight = initialNoteHeight;
         let newLeft = initialNoteX;
@@ -1389,10 +1594,9 @@ function dragOrResize(e) {
 
     // --- STROKE DRAGGING LOGIC ---
     if (isMoving && activeDraggableStroke) {
-        // e.preventDefault(); // Already done
-        // MODIFIED: Use pointerCoords
-        const dx = pointerCoords.clientX - lastX;
-        const dy = pointerCoords.clientY - lastY;
+        // MODIFIED: Divide by zoom
+        const dx = (pointerCoords.clientX - lastX) / zoom;
+        const dy = (pointerCoords.clientY - lastY) / zoom;
 
         // Move all points (marker/highlight/washi)
         activeDraggableStroke.points.forEach(point => {
@@ -1416,7 +1620,6 @@ function dragOrResize(e) {
 
         redrawAllStrokes();
 
-        // MODIFIED: Use pointerCoords
         lastX = pointerCoords.clientX;
         lastY = pointerCoords.clientY;
         return;
@@ -1424,10 +1627,9 @@ function dragOrResize(e) {
 
     // Dragging Logic (Sticky Note or Image)
     if (isMoving && activeDraggable) {
-        // e.preventDefault(); // Already done
-        // MODIFIED: Use pointerCoords
-        const dx = pointerCoords.clientX - lastX;
-        const dy = pointerCoords.clientY - lastY;
+        // MODIFIED: Divide by zoom
+        const dx = (pointerCoords.clientX - lastX) / zoom;
+        const dy = (pointerCoords.clientY - lastY) / zoom;
 
         let newLeft = activeDraggable.offsetLeft + dx;
         let newTop = activeDraggable.offsetTop + dy;
@@ -1440,7 +1642,6 @@ function dragOrResize(e) {
         activeDraggable.style.left = newLeft + 'px';
         activeDraggable.style.top = newTop + 'px';
 
-        // MODIFIED: Use pointerCoords
         lastX = pointerCoords.clientX;
         lastY = pointerCoords.clientY;
 
@@ -1506,8 +1707,31 @@ function dragOrResize(e) {
 // MODIFIED: Handles both mouse and touch
 function endDragOrResize(e) {
     if (!corkboard) return;
-    
-    // const pointerCoords = getPointerCoords(e); // Get unified coords for touchend
+
+    if (isPanning) {
+        isPanning = false;
+        corkboard.style.cursor = isSpacePressed ? 'grab' : (currentTool === 'select' ? 'default' : 'crosshair');
+        return;
+    }
+
+    if (isMarqueeSelecting) {
+        isMarqueeSelecting = false;
+        if (marqueeElement) {
+            marqueeElement.remove();
+            marqueeElement = null;
+        }
+
+        // If only 1 note was selected by marquee, make it activeNote and show toolbar
+        if (selectedNotes.length === 1) {
+            activeNote = selectedNotes[0];
+            updateNoteToolbarState();
+            updateNoteToolbarPosition(activeNote);
+            noteFloatingToolbar?.classList.remove('hidden');
+        } else {
+            noteFloatingToolbar?.classList.add('hidden');
+        }
+        return;
+    }
 
     // Resizing End
     if (isResizing && activeNote) {
@@ -1539,16 +1763,32 @@ function endDragOrResize(e) {
             activeDraggable.classList.remove('is-moving');
 
             if (activeDraggable.classList.contains('sticky-note')) {
-                const noteId = parseInt(activeDraggable.getAttribute('data-note-id'));
-                const note = stickyNotes.find(n => n.id === noteId);
-                if (note) {
-                    note.canvasX = parseInt(activeDraggable.style.left) || 0;
-                    note.canvasY = parseInt(activeDraggable.style.top) || 0;
-                    saveStickyNote(note); // Save persistence
-                }
-                if (activeNote) {
-                    updateNoteToolbarState();
-                    noteFloatingToolbar?.classList.remove('hidden');
+                if (selectedNotes.includes(activeDraggable)) {
+                    selectedNotes.forEach(note => {
+                        const noteId = parseInt(note.getAttribute('data-note-id'));
+                        const noteData = stickyNotes.find(n => n.id === noteId);
+                        if (noteData) {
+                            noteData.canvasX = parseInt(note.style.left) || 0;
+                            noteData.canvasY = parseInt(note.style.top) || 0;
+                            saveStickyNote(noteData);
+                        }
+                    });
+                    if (selectedNotes.length === 1 && activeNote) {
+                        updateNoteToolbarState();
+                        noteFloatingToolbar?.classList.remove('hidden');
+                    }
+                } else {
+                    const noteId = parseInt(activeDraggable.getAttribute('data-note-id'));
+                    const note = stickyNotes.find(n => n.id === noteId);
+                    if (note) {
+                        note.canvasX = parseInt(activeDraggable.style.left) || 0;
+                        note.canvasY = parseInt(activeDraggable.style.top) || 0;
+                        saveStickyNote(note); // Save persistence
+                    }
+                    if (activeNote) {
+                        updateNoteToolbarState();
+                        noteFloatingToolbar?.classList.remove('hidden');
+                    }
                 }
             }
             
@@ -2249,6 +2489,18 @@ function initializeStickyWall() {
     fitCanvasToBoard();
     window.addEventListener('resize', fitCanvasToBoard);
 
+    // Initial viewport centering
+    if (panX === 0 && panY === 0) {
+        const container = document.getElementById('sticky-wall-container');
+        if (container) {
+            panX = (container.clientWidth - 5000) / 2;
+            panY = (container.clientHeight - 5000) / 2;
+            zoom = 1.0;
+            updateCanvasTransform();
+            updateZoomIndicator();
+        }
+    }
+
     ctx = canvas.getContext('2d');
     renderStickyWallNotes();
 }
@@ -2358,9 +2610,50 @@ function handlePasswordReset() {
         });
 }
 
+// Figma Zoom and Pan helper functions
+function updateCanvasTransform() {
+    if (!corkboard) return;
+    corkboard.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+}
+
+function updateZoomIndicator() {
+    const display = document.getElementById('zoom-percentage-display');
+    if (display) {
+        display.textContent = `${Math.round(zoom * 100)}%`;
+    }
+}
+
 
 document.addEventListener('DOMContentLoaded', () => {
     
+    // --- Custom Premium Selector Click Syncing ---
+    document.querySelectorAll('.quadrant-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const val = btn.getAttribute('data-value');
+            document.getElementById('task-priority').value = val;
+            document.querySelectorAll('.quadrant-opt').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    document.querySelectorAll('.status-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const val = btn.getAttribute('data-value');
+            document.getElementById('task-status').value = val;
+            document.querySelectorAll('.status-opt').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    document.querySelectorAll('.cat-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const val = btn.getAttribute('data-value');
+            document.getElementById('task-category').value = val;
+            document.querySelectorAll('.cat-opt').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
     // --- FIX: Search Input Selector and Listener moved here ---
     const searchInput = document.getElementById('search-input'); // Element selection is now safe
 
@@ -2459,6 +2752,74 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // --- Theme Toggle Logic ---
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        });
+    }
+    // Initialize theme from localStorage or system setting
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+    } else {
+        document.documentElement.classList.add('dark');
+    }
+
+    // --- Board Style Selector ---
+    const boardStyleBtn = document.getElementById('board-style-btn');
+    const boardStyleMenu = document.getElementById('board-style-menu');
+    const corkboardEl = document.getElementById('corkboard');
+    const currentBoardStyleDisplay = document.getElementById('current-board-style-display');
+
+    if (boardStyleBtn && boardStyleMenu && corkboardEl) {
+        boardStyleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            boardStyleMenu.classList.toggle('visible');
+        });
+
+        document.addEventListener('click', () => {
+            boardStyleMenu.classList.remove('visible');
+        });
+
+        boardStyleMenu.querySelectorAll('.board-style-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                const style = option.getAttribute('data-style');
+                if (style) {
+                    // Remove all board style classes
+                    corkboardEl.classList.remove('board-style-cork', 'board-style-dot-grid', 'board-style-square-grid', 'board-style-glass');
+                    
+                    // Add selected style class
+                    corkboardEl.classList.add(`board-style-${style}`);
+                    
+                    // Update active style class in menu
+                    boardStyleMenu.querySelectorAll('.board-style-option').forEach(opt => {
+                        opt.classList.remove('active-style');
+                    });
+                    option.classList.add('active-style');
+                    
+                    // Update text label
+                    if (currentBoardStyleDisplay) {
+                        currentBoardStyleDisplay.textContent = option.textContent;
+                    }
+                    
+                    // Save style to local storage
+                    localStorage.setItem('boardStyle', style);
+                }
+            });
+        });
+
+        // Load initial board style
+        const savedBoardStyle = localStorage.getItem('boardStyle') || 'dot-grid';
+        const initialOption = boardStyleMenu.querySelector(`.board-style-option[data-style="${savedBoardStyle}"]`);
+        if (initialOption) {
+            initialOption.click();
+        }
+    }
 
     const sidebar = document.querySelector('.sidebar');
     const menuToggle = document.querySelector('.menu-toggle');
@@ -2590,6 +2951,170 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // --- FIGMA-STYLE ZOOM & PAN CONTROLS & LISTENERS ---
+    const corkboardContainer = document.getElementById('sticky-wall-container');
+
+    if (corkboard && corkboardContainer) {
+        // Wheel Event for Zoom & Pan
+        corkboardContainer.addEventListener('wheel', (e) => {
+            if (currentView !== 'sticky-wall') return;
+
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+
+                const zoomIntensity = 0.05;
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+
+                // Coordinates relative to the corkboard container
+                const rect = corkboardContainer.getBoundingClientRect();
+                const containerX = mouseX - rect.left;
+                const containerY = mouseY - rect.top;
+
+                // Current coordinate on the canvas before zoom
+                const canvasX = (containerX - panX) / zoom;
+                const canvasY = (containerY - panY) / zoom;
+
+                // Calculate new zoom
+                let newZoom = zoom;
+                if (e.deltaY < 0) {
+                    newZoom = Math.min(3.0, zoom + zoomIntensity);
+                } else {
+                    newZoom = Math.max(0.2, zoom - zoomIntensity);
+                }
+
+                // Adjust pan to keep mouse point fixed
+                panX = containerX - canvasX * newZoom;
+                panY = containerY - canvasY * newZoom;
+                zoom = newZoom;
+
+                updateCanvasTransform();
+                updateZoomIndicator();
+            } else {
+                // Standard scroll pans the canvas
+                e.preventDefault();
+                const scrollSpeed = 1.0;
+                if (e.shiftKey) {
+                    panX -= e.deltaY * scrollSpeed;
+                } else {
+                    panY -= e.deltaY * scrollSpeed;
+                    panX -= e.deltaX * scrollSpeed;
+                }
+                updateCanvasTransform();
+            }
+        }, { passive: false });
+
+        // Double Click to create sticky note
+        corkboard.addEventListener('dblclick', (e) => {
+            if (currentView === 'sticky-wall' && currentTool === 'select' && (e.target === corkboard || e.target === canvas)) {
+                const { offsetX, offsetY } = getOffsetCoords(e, corkboard);
+                
+                // Spawn a new note centered under the cursor
+                const noteWidth = 200;
+                const noteHeight = 200;
+                const noteX = offsetX - noteWidth / 2;
+                const noteY = offsetY - noteHeight / 2;
+
+                const newNoteData = {
+                    title: 'New Sticky Note',
+                    noteColor: currentStickyNoteColor || 'yellow',
+                    noteFont: 'inter',
+                    noteSize: 'medium',
+                    noteContent: 'Double click to edit...',
+                    canvasX: noteX,
+                    canvasY: noteY,
+                    noteWidth: noteWidth,
+                    noteHeight: noteHeight,
+                    noteCanvasData: null
+                };
+
+                saveStickyNote(newNoteData);
+            }
+        });
+    }
+
+    // Spacebar temporary hand tool & selected notes deletion
+    window.addEventListener('keydown', (e) => {
+        if (currentView !== 'sticky-wall') return;
+
+        const activeTag = document.activeElement.tagName.toLowerCase();
+        const isContentEditable = document.activeElement.getAttribute('contenteditable') === 'true';
+
+        if (activeTag !== 'input' && activeTag !== 'textarea' && !isContentEditable) {
+            if (e.code === 'Space' && !isSpacePressed) {
+                e.preventDefault();
+                isSpacePressed = true;
+                corkboard.setAttribute('data-tool-before-space', corkboard.getAttribute('data-tool') || 'select');
+                corkboard.setAttribute('data-tool', 'hand');
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (selectedNotes.length > 0) {
+                    e.preventDefault();
+
+                    selectedNotes.forEach(note => {
+                        const noteId = parseInt(note.getAttribute('data-note-id'));
+                        deleteStickyNote(noteId);
+                    });
+
+                    selectedNotes = [];
+                    activeNote = null;
+                    if (noteFloatingToolbar) noteFloatingToolbar.classList.add('hidden');
+                }
+            }
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (currentView !== 'sticky-wall') return;
+        if (e.code === 'Space' && isSpacePressed) {
+            isSpacePressed = false;
+            const originalTool = corkboard.getAttribute('data-tool-before-space') || 'select';
+            corkboard.setAttribute('data-tool', originalTool);
+        }
+    });
+
+    // Zoom Buttons click handlers
+    const zoomInBtn = document.getElementById('zoom-in-btn');
+    const zoomOutBtn = document.getElementById('zoom-out-btn');
+    const zoomResetBtn = document.getElementById('zoom-reset-btn');
+
+    if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', () => adjustZoomAtCenter(0.1));
+    }
+    if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', () => adjustZoomAtCenter(-0.1));
+    }
+    if (zoomResetBtn) {
+        zoomResetBtn.addEventListener('click', () => {
+            zoom = 1.0;
+            if (corkboardContainer) {
+                panX = (corkboardContainer.clientWidth - 5000) / 2;
+                panY = (corkboardContainer.clientHeight - 5000) / 2;
+            } else {
+                panX = 0;
+                panY = 0;
+            }
+            updateCanvasTransform();
+            updateZoomIndicator();
+        });
+    }
+
+    function adjustZoomAtCenter(delta) {
+        if (!corkboardContainer) return;
+        const rect = corkboardContainer.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+
+        const canvasX = (centerX - panX) / zoom;
+        const canvasY = (centerY - panY) / zoom;
+
+        zoom = Math.max(0.2, Math.min(3.0, zoom + delta));
+        panX = centerX - canvasX * zoom;
+        panY = centerY - canvasY * zoom;
+
+        updateCanvasTransform();
+        updateZoomIndicator();
+    }
 
     switchView('matrix');
 });
